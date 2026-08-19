@@ -13,6 +13,7 @@ import { globalErrorHandler } from "./app/middleware/globalErrorHandler";
 import { notFound } from "./app/middleware/notFound";
 import { AuthRoutes } from "./app/module/auth/auth.route";
 import { UserRoutes } from "./app/module/user/user.route";
+import z from "zod";
 
 const app: Application = express();
 
@@ -55,6 +56,39 @@ app.get("/test", async (req: Request, res: Response, next: NextFunction) => {
 		next(error);
 	}
 });
+
+
+
+app.post("/zod", async (req:Request, res:Response, next:NextFunction) => {
+
+	try {
+		const UserZodSchema = z.object({
+		name:z.string(),
+		age: z.number().optional(),
+		isVerified: z.boolean().optional(),
+		books: z.array(z.string().optional())
+	})
+	const payload = req.body;
+	const result = UserZodSchema.safeParse(payload);
+
+	if(!result.success){
+		console.log(result.error);
+	}
+	if (result.success) {
+		console.log(result.data);
+	}
+
+	res.status(httpStatus.OK).json({
+		success: true,
+		message: "Zod Validation Successful",
+		data: result,
+	});
+}
+catch (error) {
+	console.log(error);
+}
+
+})
 
 // Basic route
 app.get("/", async (req: Request, res: Response) => {
