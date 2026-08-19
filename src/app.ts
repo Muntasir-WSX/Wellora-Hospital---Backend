@@ -3,7 +3,7 @@ import cors from "cors";
 import crypto from "crypto";
 import express, {
 	type Application,
-	NextFunction,
+	type NextFunction,
 	type Request,
 	type Response,
 } from "express";

@@ -11,7 +11,11 @@
         "format:check": "npx @biomejs/biome format ./src",
         "format:fix": "npx @biomejs/biome format --write ./src",
         "lint:check": "npx @biomejs/biome lint ./src",
-        "lint:fix": "npx @biomejs/biome lint --write ./src"
+        "lint:fix": "npx @biomejs/biome lint --write ./src",
+        "Formate_Check": "npx @biomejs/biome format ./src",
+        "Formate_Fix": "npx @biomejs/biome format --write ./src",
+        "Lint_Check": "npx @biomejs/biome lint ./src",
+        "Lint_Fix": "npx @biomejs/biome lint --write ./src"
     },
     "keywords": [],
     "author": "",
@@ -27,7 +31,7 @@
         "dotenv": "^17.4.2",
         "ejs": "^6.0.1",
         "express": "^5.2.1",
-        "google-auth-library": "^11.0.0",
+        "google-auth-library": "^11.0.2",
         "http-status": "^2.1.0",
         "jsonwebtoken": "^9.0.3",
         "multer": "^2.2.0",
