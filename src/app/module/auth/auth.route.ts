@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response, Router } from "express";
+import { type NextFunction, type Request, type Response, Router } from "express";
 import { Role } from "../../../generated/prisma/enums";
 import { auth } from "../../middleware/checkAuth";
 import { validateRequest } from "../../middleware/validateRequest";

@@ -36,20 +36,30 @@ app.use("/api/v1/user", UserRoutes);
 
 app.get("/test", async (req: Request, res: Response, next: NextFunction) => {
 	try {
-		// 100000 > 999999 > 1000000
-		const otp = crypto.randomInt(100000, 1000000); // 1, 2, 3, 4, 5, 6,7,8 ,9, 10 => X-11
 
-		// await redisClient.set("forgot-password-otp:patient1@gmail.com", "123456", {
-		// 	expiration : {
-		// 		type : "EX",
-		// 		value : 60
-		// 	}
-		// })
+
+		const grantToken = await fetch(`${config.bkash_base_url}/tokenized/checkout/token/grant`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Accept: "application/json",
+				username: config.bkash_username,
+				password: config.bkash_password,
+			},
+			body: JSON.stringify({
+				app_key: config.bkash_app_key,
+				app_secret: config.bkash_app_secret,
+			}),
+		});
+
+		const grantTokenResult = await grantToken.json();
+		console.log("Grant Token Result:", grantTokenResult);
+	
 
 		res.status(httpStatus.OK).json({
 			success: true,
 			message: "Welcome to PH Healthcare System Backend",
-			data: otp,
+			data: null,
 		});
 	} catch (error) {
 		console.log(error);
