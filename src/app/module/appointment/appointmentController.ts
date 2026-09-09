@@ -14,9 +14,22 @@ const bookAppointment = catchAsync(async (req: Request, res: Response) => {
         data: result,
     });
 });
+const bookAppointmentCallback = catchAsync(async (req: Request, res: Response) => {
+    
+    console.log("Bkash Callback Request:", req.query);
+    const result =  AppointmentServices.bookAppointmentCallback(); 
+    
+    sendResponse(res, {
+        statusCode: httpStatus.OK,
+        success: true,
+        message: "User profile fetched successfully",
+        data: result,
+    });
+});
 
 
 
 export const AppointmentController = {
     bookAppointment,
+    bookAppointmentCallback
 };
