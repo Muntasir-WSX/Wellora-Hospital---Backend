@@ -71,7 +71,7 @@ export const seedTesterAdmin = async () => {
 
 		const name = config.tester_admin_name;
 		const email = config.tester_admin_email;
-		const password = config.tester_admin_password;
+			const password = config.tester_doctor_password;
 
 		if (!name || !email || !password) {
 			throw new Error(

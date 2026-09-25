@@ -3,6 +3,7 @@ import type { JwtPayload } from "jsonwebtoken";
 import type { Role } from "../../generated/prisma/enums";
 import config from "../config";
 import { prisma } from "../lib/prisma";
+import { AppError } from "../utils/AppError";
 import { catchAsync } from "../utils/catchAsync";
 import { jwtUtils } from "../utils/jwt";
 
@@ -19,6 +20,13 @@ declare global {
 	}
 }
 
+export type RequestUser = {
+	email: string;
+	name: string;
+	userId: string;
+	role: Role;
+};
+
 // auth(Role.ADMIN, Role.USER, Role.Author)
 // auth() => ...requiredRoles => [Role.ADMIN, Role.USER, Role.AUTHOR]
 export const auth = (...requiredRoles: Role[]) => {
@@ -30,7 +38,8 @@ export const auth = (...requiredRoles: Role[]) => {
 				: req.headers.authorization;
 
 		if (!token) {
-			throw new Error(
+					throw new AppError(
+						401,
 				"You are not logged in. Please log in to access this resource.",
 			);
 		}
@@ -38,13 +47,14 @@ export const auth = (...requiredRoles: Role[]) => {
 		const verifiedToken = jwtUtils.verifyToken(token, config.jwt_access_secret);
 
 		if (!verifiedToken.success) {
-			throw new Error(verifiedToken.error);
+					throw new AppError(401, verifiedToken.error);
 		}
 
 		const { email, name, userId, role } = verifiedToken.data as JwtPayload;
 
 		if (requiredRoles.length && !requiredRoles.includes(role)) {
-			throw new Error(
+						throw new AppError(
+							403,
 				"Forbidden. You don't have permission to access this resource.",
 			);
 		}
@@ -59,11 +69,11 @@ export const auth = (...requiredRoles: Role[]) => {
 		});
 
 		if (!user) {
-			throw new Error("User not found. Please log in again.");
+					throw new AppError(401, "User not found. Please log in again.");
 		}
 
-		if (user.status === "BLOCKED") {
-			throw new Error("Your account has been blocked. Please contact support.");
+			if (user.status === "BLOCKED" || user.status === "DELETED" || user.isDeleted) {
+					throw new AppError(403, "Your account has been blocked. Please contact support.");
 		}
 
 		req.user = {

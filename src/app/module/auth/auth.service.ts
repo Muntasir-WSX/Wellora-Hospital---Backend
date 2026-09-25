@@ -7,6 +7,7 @@ import type { JwtPayload, SignOptions } from "jsonwebtoken";
 import path from "path";
 import {
 	AuthProvider,
+	DoctorVerificationStatus,
 	Role,
 	UserStatus,
 } from "../../../generated/prisma/enums";
@@ -228,6 +229,17 @@ const loginUser = async (payload: ILoginUserPayload) => {
 
 	if (user.isDeleted || user.status === UserStatus.DELETED) {
 		throw new Error("User is deleted");
+	}
+
+	if (!user.emailVerified) {
+		throw new Error("Please verify your email before logging in");
+	}
+
+	if (user.role === Role.DOCTOR) {
+		const doctor = await prisma.doctor.findUnique({ where: { userId: user.id } });
+		if (!doctor || doctor.verificationStatus !== DoctorVerificationStatus.APPROVED) {
+			throw new Error("Doctor application is not approved");
+		}
 	}
 
 	if (user.password === null && user.googleId !== null) {

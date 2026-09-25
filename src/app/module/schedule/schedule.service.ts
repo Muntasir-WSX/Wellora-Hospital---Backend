@@ -60,13 +60,15 @@ const createSchedule = async (payload : ICreateSchedulePayload , user : RequestU
     )
 
     const MINUTES_ALLOCATED_PER_SLOT = 20
+    const MIN_SCHEDULE_MINUTES = 3 * 60
+    const MAX_SCHEDULE_MINUTES = 8 * 60
 
     const totalSlots = Math.floor(durationInMinutes / MINUTES_ALLOCATED_PER_SLOT)
 
-    if (totalSlots < 1) {
+    if (durationInMinutes < MIN_SCHEDULE_MINUTES || durationInMinutes > MAX_SCHEDULE_MINUTES) {
         throw new AppError(
             httpStatus.CONFLICT,
-            `Schedule Must Be At Least ${MINUTES_ALLOCATED_PER_SLOT} Minutes Long To Fit One Slot`,
+            "Schedule duration must be between 3 and 8 hours",
         );
     }
 
@@ -330,6 +332,7 @@ const updateSchedule = async (scheduleId : string, payload : IUpdateSchedulePayl
     const existingScheduleOnThisDate = await prisma.schedule.findFirst({
         where: {
             doctorId: doctor.id,
+            id: { not: schedule.id },
             isDeleted: false,
             startDateTime: {
                 gte: startOfTheDay,
@@ -351,13 +354,15 @@ const updateSchedule = async (scheduleId : string, payload : IUpdateSchedulePayl
     )
 
     const MINUTES_ALLOCATED_PER_SLOT = 20
+    const MIN_SCHEDULE_MINUTES = 3 * 60
+    const MAX_SCHEDULE_MINUTES = 8 * 60
 
     const totalSlots = Math.floor(durationInMinutes / MINUTES_ALLOCATED_PER_SLOT)
 
-    if (totalSlots < 1) {
+    if (durationInMinutes < MIN_SCHEDULE_MINUTES || durationInMinutes > MAX_SCHEDULE_MINUTES) {
         throw new AppError(
             httpStatus.CONFLICT,
-            `Schedule Must Be At Least ${MINUTES_ALLOCATED_PER_SLOT} Minutes Long To Fit One Slot`,
+            "Schedule duration must be between 3 and 8 hours",
         );
     }
 

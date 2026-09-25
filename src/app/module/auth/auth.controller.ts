@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import httpStatus from "http-status";
+import config from "../../config";
 import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import type { IRequestUser } from "./auth.interface";
@@ -37,14 +38,14 @@ const verifyPatientEmail = catchAsync(async (req: Request, res: Response) => {
 
     res.cookie("accessToken", accessToken, {
         httpOnly: true,
-        secure: false,
-        sameSite: "none",
+        secure: config.node_env === "production",
+        sameSite: config.node_env === "production" ? "none" : "lax",
         maxAge: 1000 * 60 * 60 * 24,
     });
     res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
-        secure: false,
-        sameSite: "none",
+        secure: config.node_env === "production",
+        sameSite: config.node_env === "production" ? "none" : "lax",
         maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
@@ -68,14 +69,14 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
 
     res.cookie("accessToken", accessToken, {
         httpOnly: true,
-        secure: false,
-        sameSite: "none",
+        secure: config.node_env === "production",
+        sameSite: config.node_env === "production" ? "none" : "lax",
         maxAge: 1000 * 60 * 60 * 24,
     });
     res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
-        secure: false,
-        sameSite: "none",
+        secure: config.node_env === "production",
+        sameSite: config.node_env === "production" ? "none" : "lax",
         maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
@@ -115,14 +116,14 @@ const refreshToken = catchAsync(async (req: Request, res: Response) => {
 
     res.cookie("accessToken", accessToken, {
         httpOnly: true,
-        secure: false,
-        sameSite: "none",
+        secure: config.node_env === "production",
+        sameSite: config.node_env === "production" ? "none" : "lax",
         maxAge: 1000 * 60 * 60 * 24,
     });
     res.cookie("refreshToken", newRefreshToken, {
         httpOnly: true,
-        secure: false,
-        sameSite: "none",
+        secure: config.node_env === "production",
+        sameSite: config.node_env === "production" ? "none" : "lax",
         maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 

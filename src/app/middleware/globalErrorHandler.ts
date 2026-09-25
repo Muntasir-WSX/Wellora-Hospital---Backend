@@ -16,6 +16,9 @@ export const globalErrorHandler = async (
 	let statusCode: number = httpStatus.INTERNAL_SERVER_ERROR;
 	let errorMessage = err.message || "Internal Server Error";
 	const errorName = err.name || "Internal Server Error";
+	if (typeof err.statusCode === "number") {
+		statusCode = err.statusCode;
+	}
 	// let errorDetails = err.stack
 
 	if (err instanceof Prisma.PrismaClientValidationError) {
@@ -49,7 +52,7 @@ export const globalErrorHandler = async (
 		errorMessage = err.message;
 	}
 
-	res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+	res.status(statusCode).json({
 		success: false,
 		statusCode: statusCode || httpStatus.INTERNAL_SERVER_ERROR,
 		name:

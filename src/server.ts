@@ -17,11 +17,19 @@ const main = async () => {
 		await prisma.$connect();
 		console.log("Connected to the database successfully.");
 
-		await redisClient.connect();
-		console.log("Redis Connected Successfully.");
+		try {
+			await redisClient.connect();
+			console.log("Redis Connected Successfully.");
+		} catch (error) {
+			console.warn("Redis unavailable; Redis-backed features are disabled.", error);
+		}
 
-		await transporter.verify();
-		console.log("Nodemailer Connected Successfully.");
+		try {
+			await transporter.verify();
+			console.log("Nodemailer Connected Successfully.");
+		} catch (error) {
+			console.warn("Nodemailer unavailable; email features are disabled.", error);
+		}
 
 		await seedSuperAdmin();
 		await seedTesterAdmin();
