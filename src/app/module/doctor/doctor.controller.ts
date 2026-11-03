@@ -44,7 +44,7 @@ const verifyDoctorEmail = catchAsync(async (req: Request, res: Response) => {
 	sendResponse(res, {
 		statusCode: httpStatus.OK,
 		success: true,
-		message: "Doctor Email Verified Successfully",
+		message: `Doctor Application ${payload.verificationStatus.toLowerCase()} successfully`,
 		data: result,
 	});
 });

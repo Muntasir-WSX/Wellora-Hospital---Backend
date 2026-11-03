@@ -83,7 +83,14 @@ const uploadProfileImage = async (buffer: Buffer, userId: string) => {
 	});
 
 	if (currentUser?.imagePublicId && currentUser.imageUrl) {
-		await cloudinary.uploader.destroy(currentUser.imagePublicId);
+		try {
+			await cloudinary.uploader.destroy(currentUser.imagePublicId);
+		} catch (error) {
+			console.error(
+				"Failed to delete previous profile image from Cloudinary:",
+				error,
+			);
+		}
 	}
 
 	return updatedUser;
