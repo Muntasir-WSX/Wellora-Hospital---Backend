@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
 import httpStatus from "http-status";
-import { catchAsync } from "../../utils/catchAsync";
-import { sendResponse } from "../../utils/sendResponse";
-import { PrescriptionServices } from "./prescription.service";
+import { catchAsync } from "../../utils/catchAsync.js";
+import { sendResponse } from "../../utils/sendResponse.js";
+import { PrescriptionServices } from "./prescription.service.js";
 
 const createPrescription = catchAsync(async (req: Request, res: Response) => {
     const payload = req.body;

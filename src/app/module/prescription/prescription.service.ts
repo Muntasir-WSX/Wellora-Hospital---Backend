@@ -1,15 +1,15 @@
 import { UploadApiResponse } from "cloudinary";
 import httpStatus from "http-status";
 import PDFDocument from "pdfkit";
-import { AppointmentStatus, Role } from "../../../generated/prisma/enums";
-import { Prisma } from "../../../generated/prisma/client";
-import config from "../../config";
-import { cloudinary } from "../../lib/cloudinary";
-import { transporter } from "../../lib/nodemailer";
-import { prisma } from "../../lib/prisma";
-import { RequestUser } from "../../middleware/checkAuth";
-import { AppError } from "../../utils/AppError";
-import { ICreatePrescriptionPayload } from "./prescription.interface";
+import { AppointmentStatus, Role } from "../../../generated/prisma/enums.js";
+import { Prisma } from "../../../generated/prisma/client.js";
+import config from "../../config/index.js";
+import { cloudinary } from "../../lib/cloudinary.js";
+import { transporter } from "../../lib/nodemailer.js";
+import { prisma } from "../../lib/prisma.js";
+import { RequestUser } from "../../middleware/checkAuth.js";
+import { AppError } from "../../utils/AppError.js";
+import { ICreatePrescriptionPayload } from "./prescription.interface.js";
 
 const createPrescription = async (
 	payload: ICreatePrescriptionPayload,

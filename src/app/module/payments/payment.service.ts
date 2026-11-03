@@ -1,10 +1,10 @@
 import httpStatus from "http-status";
-import { Role } from "../../../generated/prisma/enums";
-import { PaymentWhereInput } from "../../../generated/prisma/models";
-import { IQuery } from "../../interfaces";
-import { prisma } from "../../lib/prisma";
-import { RequestUser } from "../../middleware/checkAuth";
-import { AppError } from "../../utils/AppError";
+import { Role } from "../../../generated/prisma/enums.js";
+import { PaymentWhereInput } from "../../../generated/prisma/models.js";
+import { IQuery } from "../../interfaces/index.js";
+import { prisma } from "../../lib/prisma.js";
+import { RequestUser } from "../../middleware/checkAuth.js";
+import { AppError } from "../../utils/AppError.js";
 
 
 const getMyPayments = async (query : IQuery, user : RequestUser) => {

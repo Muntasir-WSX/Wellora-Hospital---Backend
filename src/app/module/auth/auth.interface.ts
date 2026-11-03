@@ -1,4 +1,4 @@
-import type { BloodGroup, Role } from "../../../generated/prisma/browser";
+import type { BloodGroup, Role } from "../../../generated/prisma/browser.js";
 
 export interface ILoginUserPayload {
 	email: string;

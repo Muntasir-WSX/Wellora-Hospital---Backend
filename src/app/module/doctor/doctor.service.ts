@@ -5,17 +5,17 @@ import { addDays, startOfDay } from "date-fns";
 import ejs from "ejs";
 import httpStatus from "http-status";
 import path from "path";
-import { DoctorVerificationStatus, Role, ScheduleStatus } from "../../../generated/prisma/enums";
-import { DoctorWhereInput } from "../../../generated/prisma/models";
-import config from "../../config";
-import { IQuery } from "../../interfaces";
-import { cloudinary } from "../../lib/cloudinary";
-import { transporter } from "../../lib/nodemailer";
-import { prisma } from "../../lib/prisma";
-import { redisClient } from "../../lib/redis";
-import { RequestUser } from "../../middleware/checkAuth";
-import { AppError } from "../../utils/AppError";
-import { IApplyAsDoctorPayload, IApproveDoctorPayload, IUpdateDoctorProfilePayload, IVerifyDoctorEmailPayload } from "./doctor.interface";
+import { DoctorVerificationStatus, Role, ScheduleStatus } from "../../../generated/prisma/enums.js";
+import { DoctorWhereInput } from "../../../generated/prisma/models.js";
+import config from "../../config/index.js";
+import { IQuery } from "../../interfaces/index.js";
+import { cloudinary } from "../../lib/cloudinary.js";
+import { transporter } from "../../lib/nodemailer.js";
+import { prisma } from "../../lib/prisma.js";
+import { redisClient } from "../../lib/redis.js";
+import { RequestUser } from "../../middleware/checkAuth.js";
+import { AppError } from "../../utils/AppError.js";
+import { IApplyAsDoctorPayload, IApproveDoctorPayload, IUpdateDoctorProfilePayload, IVerifyDoctorEmailPayload } from "./doctor.interface.js";
 
 const applyAsDoctor = async (
 	payload: IApplyAsDoctorPayload,

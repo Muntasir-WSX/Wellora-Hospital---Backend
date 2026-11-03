@@ -1,6 +1,6 @@
 import httpStatus from "http-status";
-import { prisma } from "../../lib/prisma";
-import { AppError } from "../../utils/AppError";
+import { prisma } from "../../lib/prisma.js";
+import { AppError } from "../../utils/AppError.js";
 
 const getDepartments = () =>
 	prisma.department.findMany({

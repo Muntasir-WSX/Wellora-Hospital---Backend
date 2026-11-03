@@ -6,21 +6,21 @@ import {
 	PaymentStatus,
 	Role,
 	ScheduleStatus,
-} from "../../../generated/prisma/enums";
-import { AppointmentWhereInput } from "../../../generated/prisma/models";
-import config from "../../config";
-import { IQuery } from "../../interfaces";
-import { getBkashIdToken } from "../../lib/bkash";
-import { transporter } from "../../lib/nodemailer";
-import { prisma } from "../../lib/prisma";
-import type { RequestUser } from "../../middleware/checkAuth";
-import { AppError } from "../../utils/AppError";
+} from "../../../generated/prisma/enums.js";
+import { AppointmentWhereInput } from "../../../generated/prisma/models.js";
+import config from "../../config/index.js";
+import { IQuery } from "../../interfaces/index.js";
+import { getBkashIdToken } from "../../lib/bkash.js";
+import { transporter } from "../../lib/nodemailer.js";
+import { prisma } from "../../lib/prisma.js";
+import type { RequestUser } from "../../middleware/checkAuth.js";
+import { AppError } from "../../utils/AppError.js";
 import {
 	IBookAppointmentPayload,
 	ICancelAppointmentPayload,
 	IPayAppointmentPayload,
 	IUpdateAppointmentStatusPayload,
-} from "./appoitment.interface";
+} from "./appoitment.interface.js";
 
 const bookAppointment = async (
 	payload: IBookAppointmentPayload,

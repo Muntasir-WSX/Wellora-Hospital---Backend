@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { Role } from "../../../generated/prisma/enums";
-import { auth } from "../../middleware/checkAuth";
-import { validateRequest } from "../../middleware/validateRequest";
-import { ScheduleController } from "./schedule.controller";
+import { Role } from "../../../generated/prisma/enums.js";
+import { auth } from "../../middleware/checkAuth.js";
+import { validateRequest } from "../../middleware/validateRequest.js";
+import { ScheduleController } from "./schedule.controller.js";
 import {
     CreateScheduleValidationZodSchema,
     UpdateScheduleValidationZodSchema,
-} from "./schedule.validation";
+} from "./schedule.validation.js";
 
 const router = Router();
 

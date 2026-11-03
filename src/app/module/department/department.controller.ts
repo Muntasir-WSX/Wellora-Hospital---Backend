@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
 import httpStatus from "http-status";
-import { catchAsync } from "../../utils/catchAsync";
-import { sendResponse } from "../../utils/sendResponse";
-import { DepartmentServices } from "./department.service";
+import { catchAsync } from "../../utils/catchAsync.js";
+import { sendResponse } from "../../utils/sendResponse.js";
+import { DepartmentServices } from "./department.service.js";
 
 const getDepartments = catchAsync(async (_req: Request, res: Response) => {
 	const data = await DepartmentServices.getDepartments();

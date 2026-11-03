@@ -1,8 +1,8 @@
 import httpStatus from "http-status";
-import { AppointmentStatus } from "../../../generated/prisma/enums";
-import { prisma } from "../../lib/prisma";
-import type { RequestUser } from "../../middleware/checkAuth";
-import { AppError } from "../../utils/AppError";
+import { AppointmentStatus } from "../../../generated/prisma/enums.js";
+import { prisma } from "../../lib/prisma.js";
+import type { RequestUser } from "../../middleware/checkAuth.js";
+import { AppError } from "../../utils/AppError.js";
 
 const createReview = async (
 	data: { appointmentId: string; rating: number; comment?: string },

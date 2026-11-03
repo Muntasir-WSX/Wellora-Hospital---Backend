@@ -1,14 +1,14 @@
-import app from "./app";
-import config from "./app/config";
-import { deleteUnverifiedDoctors } from "./app/lib/cron";
-import { transporter } from "./app/lib/nodemailer";
-import { prisma } from "./app/lib/prisma";
-import { redisClient } from "./app/lib/redis";
+import app from "./app.js";
+import config from "./app/config/index.js";
+import { deleteUnverifiedDoctors } from "./app/lib/cron.js";
+import { transporter } from "./app/lib/nodemailer.js";
+import { prisma } from "./app/lib/prisma.js";
+import { redisClient } from "./app/lib/redis.js";
 import {
 	seedSuperAdmin,
 	seedTesterAdmin,
 	seedTesterDoctor,
-} from "./app/utils/seed";
+} from "./app/utils/seed.js";
 
 const PORT = config.port;
 

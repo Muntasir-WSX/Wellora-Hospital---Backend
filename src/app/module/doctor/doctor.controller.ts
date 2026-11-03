@@ -1,12 +1,12 @@
 import type { Request, Response } from "express";
 import httpStatus from "http-status";
-import { AppError } from "../../utils/AppError";
-import { catchAsync } from "../../utils/catchAsync";
-import { sendResponse } from "../../utils/sendResponse";
-import { DoctorServices } from "./doctor.service";
+import { AppError } from "../../utils/AppError.js";
+import { catchAsync } from "../../utils/catchAsync.js";
+import { sendResponse } from "../../utils/sendResponse.js";
+import { DoctorServices } from "./doctor.service.js";
 import {
 	ApplyAsDoctorValidationZodSchema,
-} from "./doctor.validation";
+} from "./doctor.validation.js";
 
 const applyAsDoctor = catchAsync(async (req: Request, res: Response) => {
 	const files = req.files as { [fieldname: string]: Express.Multer.File[] };

@@ -1,6 +1,6 @@
 import type { UploadApiResponse } from "cloudinary";
-import { cloudinary } from "../../lib/cloudinary";
-import { prisma } from "../../lib/prisma";
+import { cloudinary } from "../../lib/cloudinary.js";
+import { prisma } from "../../lib/prisma.js";
 
 const uploadProfileImage = async (buffer: Buffer, userId: string) => {
 	// const cloudinaryResult = cloudinary.uploader.upload_stream(

@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { Role } from "../../../generated/prisma/enums";
-import { auth } from "../../middleware/checkAuth";
-import { validateRequest } from "../../middleware/validateRequest";
-import { PrescriptionController } from "./prescription.controller";
-import { CreatePrescriptionValidationZodSchema } from "./prescription.validation";
+import { Role } from "../../../generated/prisma/enums.js";
+import { auth } from "../../middleware/checkAuth.js";
+import { validateRequest } from "../../middleware/validateRequest.js";
+import { PrescriptionController } from "./prescription.controller.js";
+import { CreatePrescriptionValidationZodSchema } from "./prescription.validation.js";
 
 const router = Router();
 

@@ -1,6 +1,6 @@
 import cron from "node-cron";
-import { DoctorVerificationStatus, Role } from "../../generated/prisma/enums";
-import { prisma } from "./prisma";
+import { DoctorVerificationStatus, Role } from "../../generated/prisma/enums.js";
+import { prisma } from "./prisma.js";
 
 export const deleteUnverifiedDoctors = () => {
 	cron.schedule("*/10 * * * *", async () => {

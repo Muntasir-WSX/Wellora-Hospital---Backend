@@ -2,8 +2,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import {
 	DoctorVerificationStatus,
 	Role,
-} from "../../src/generated/prisma/enums";
-import { prisma } from "../../src/app/lib/prisma";
+} from "../../src/generated/prisma/enums.js";
+import { prisma } from "../../src/app/lib/prisma.js";
 
 const handler = async (req: IncomingMessage, res: ServerResponse) => {
 	if (req.method !== "GET") {

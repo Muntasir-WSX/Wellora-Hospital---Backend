@@ -1,8 +1,8 @@
 import httpStatus from "http-status"
-import { AppointmentStatus, DoctorVerificationStatus, PaymentStatus, ScheduleStatus } from "../../../generated/prisma/enums"
-import { prisma } from "../../lib/prisma"
-import { RequestUser } from "../../middleware/checkAuth"
-import { AppError } from "../../utils/AppError"
+import { AppointmentStatus, DoctorVerificationStatus, PaymentStatus, ScheduleStatus } from "../../../generated/prisma/enums.js"
+import { prisma } from "../../lib/prisma.js"
+import { RequestUser } from "../../middleware/checkAuth.js"
+import { AppError } from "../../utils/AppError.js"
 
 const getAdminAnalytics = async () => {
 

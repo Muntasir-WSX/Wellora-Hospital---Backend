@@ -7,22 +7,22 @@ import express, {
 	type Response,
 } from "express";
 import httpStatus from "http-status";
-import config from "./app/config";
-import { getBkashIdToken } from "./app/lib/bkash";
-import { globalErrorHandler } from "./app/middleware/globalErrorHandler";
-import { notFound } from "./app/middleware/notFound";
-import { auth } from "./app/middleware/checkAuth";
-import { Role } from "./generated/prisma/enums";
-import { AnalyticsRoutes } from "./app/module/analytics/analytics.route";
-import { AppointementRoutes } from "./app/module/appointment/appointmentRoute";
-import { AuthRoutes } from "./app/module/auth/auth.route";
-import { DoctorRoutes } from "./app/module/doctor/doctor.route";
-import { DepartmentRoutes } from "./app/module/department/department.route";
-import { PaymentRoutes } from "./app/module/payments/payment.route";
-import { PrescriptionRoutes } from "./app/module/prescription/prescription.route";
-import { ScheduleRoutes } from "./app/module/schedule/schedule.route";
-import { ReviewRoutes } from "./app/module/review/review.route";
-import { UserRoutes } from "./app/module/user/user.route";
+import config from "./app/config/index.js";
+import { getBkashIdToken } from "./app/lib/bkash.js";
+import { globalErrorHandler } from "./app/middleware/globalErrorHandler.js";
+import { notFound } from "./app/middleware/notFound.js";
+import { auth } from "./app/middleware/checkAuth.js";
+import { Role } from "./generated/prisma/enums.js";
+import { AnalyticsRoutes } from "./app/module/analytics/analytics.route.js";
+import { AppointementRoutes } from "./app/module/appointment/appointmentRoute.js";
+import { AuthRoutes } from "./app/module/auth/auth.route.js";
+import { DoctorRoutes } from "./app/module/doctor/doctor.route.js";
+import { DepartmentRoutes } from "./app/module/department/department.route.js";
+import { PaymentRoutes } from "./app/module/payments/payment.route.js";
+import { PrescriptionRoutes } from "./app/module/prescription/prescription.route.js";
+import { ScheduleRoutes } from "./app/module/schedule/schedule.route.js";
+import { ReviewRoutes } from "./app/module/review/review.route.js";
+import { UserRoutes } from "./app/module/user/user.route.js";
 
 const app: Application = express();
 

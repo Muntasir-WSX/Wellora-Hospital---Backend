@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
-import app from "../src/app";
-import { redisClient } from "../src/app/lib/redis";
+import app from "../src/app.js";
+import { redisClient } from "../src/app/lib/redis.js";
 
 const handler = async (req: Request, res: Response) => {
 	if (!redisClient.isOpen) {

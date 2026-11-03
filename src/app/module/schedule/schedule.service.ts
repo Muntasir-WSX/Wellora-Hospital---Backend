@@ -1,12 +1,12 @@
 import { addDays, differenceInMinutes, isAfter, isSameDay, startOfDay } from "date-fns";
 import httpStatus from "http-status";
-import { ScheduleStatus } from "../../../generated/prisma/enums";
-import { ScheduleWhereInput } from "../../../generated/prisma/models";
-import { IQuery } from "../../interfaces";
-import { prisma } from "../../lib/prisma";
-import { RequestUser } from "../../middleware/checkAuth";
-import { AppError } from "../../utils/AppError";
-import { ICreateSchedulePayload, IUpdateSchedulePayload } from "./schedule.interface";
+import { ScheduleStatus } from "../../../generated/prisma/enums.js";
+import { ScheduleWhereInput } from "../../../generated/prisma/models.js";
+import { IQuery } from "../../interfaces/index.js";
+import { prisma } from "../../lib/prisma.js";
+import { RequestUser } from "../../middleware/checkAuth.js";
+import { AppError } from "../../utils/AppError.js";
+import { ICreateSchedulePayload, IUpdateSchedulePayload } from "./schedule.interface.js";
 
 
 const createSchedule = async (payload : ICreateSchedulePayload , user : RequestUser) => {

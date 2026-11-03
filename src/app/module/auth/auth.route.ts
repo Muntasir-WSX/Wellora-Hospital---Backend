@@ -1,9 +1,9 @@
 import { type NextFunction, type Request, type Response, Router } from "express";
-import { Role } from "../../../generated/prisma/enums";
-import { auth } from "../../middleware/checkAuth";
-import { validateRequest } from "../../middleware/validateRequest";
-import { AuthController } from "./auth.controller";
-import { PatientValidation, } from "./auth.validation";
+import { Role } from "../../../generated/prisma/enums.js";
+import { auth } from "../../middleware/checkAuth.js";
+import { validateRequest } from "../../middleware/validateRequest.js";
+import { AuthController } from "./auth.controller.js";
+import { PatientValidation, } from "./auth.validation.js";
 
 const router = Router();
 

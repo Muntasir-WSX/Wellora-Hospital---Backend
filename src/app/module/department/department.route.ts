@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { Role } from "../../../generated/prisma/enums";
-import { auth } from "../../middleware/checkAuth";
-import { validateRequest } from "../../middleware/validateRequest";
-import { DepartmentController } from "./department.controller";
+import { Role } from "../../../generated/prisma/enums.js";
+import { auth } from "../../middleware/checkAuth.js";
+import { validateRequest } from "../../middleware/validateRequest.js";
+import { DepartmentController } from "./department.controller.js";
 import {
 	CreateDepartmentSchema,
 	UpdateDepartmentSchema,
-} from "./department.validation";
+} from "./department.validation.js";
 
 const router = Router();
 

@@ -1,11 +1,11 @@
 import type { Request, Response } from "express";
 import httpStatus from "http-status";
-import config from "../../config";
-import { catchAsync } from "../../utils/catchAsync";
-import { sendResponse } from "../../utils/sendResponse";
-import type { IRequestUser } from "./auth.interface";
-import { AuthService } from "./auth.service";
-import { PatientValidation } from "./auth.validation";
+import config from "../../config/index.js";
+import { catchAsync } from "../../utils/catchAsync.js";
+import { sendResponse } from "../../utils/sendResponse.js";
+import type { IRequestUser } from "./auth.interface.js";
+import { AuthService } from "./auth.service.js";
+import { PatientValidation } from "./auth.validation.js";
 
 
 const registerPatient = catchAsync(async (req: Request, res: Response) => {

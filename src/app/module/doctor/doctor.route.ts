@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { Role } from "../../../generated/prisma/enums";
-import { upload } from "../../lib/multer";
-import { auth } from "../../middleware/checkAuth";
-import { validateRequest } from "../../middleware/validateRequest";
-import { DoctorController } from "./doctor.controller";
-import { UpdateDoctorProfileValidationZodSchema } from "./doctor.validation";
+import { Role } from "../../../generated/prisma/enums.js";
+import { upload } from "../../lib/multer.js";
+import { auth } from "../../middleware/checkAuth.js";
+import { validateRequest } from "../../middleware/validateRequest.js";
+import { DoctorController } from "./doctor.controller.js";
+import { UpdateDoctorProfileValidationZodSchema } from "./doctor.validation.js";
 
 const router = Router();
 
