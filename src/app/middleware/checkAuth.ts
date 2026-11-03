@@ -1,5 +1,4 @@
 import type { NextFunction, Request, Response } from "express";
-import type { JwtPayload } from "jsonwebtoken";
 import type { Role } from "../../generated/prisma/enums";
 import config from "../config";
 import { prisma } from "../lib/prisma";
@@ -38,8 +37,8 @@ export const auth = (...requiredRoles: Role[]) => {
 				: req.headers.authorization;
 
 		if (!token) {
-					throw new AppError(
-						401,
+			throw new AppError(
+				401,
 				"You are not logged in. Please log in to access this resource.",
 			);
 		}
@@ -47,40 +46,46 @@ export const auth = (...requiredRoles: Role[]) => {
 		const verifiedToken = jwtUtils.verifyToken(token, config.jwt_access_secret);
 
 		if (!verifiedToken.success) {
-					throw new AppError(401, verifiedToken.error);
+			throw new AppError(401, verifiedToken.error);
 		}
 
-		const { email, name, userId, role } = verifiedToken.data as JwtPayload;
+		const { userId } = verifiedToken.data as { userId?: unknown };
 
-		if (requiredRoles.length && !requiredRoles.includes(role)) {
-						throw new AppError(
-							403,
+		if (typeof userId !== "string") {
+			throw new AppError(401, "Invalid token payload");
+		}
+
+		const user = await prisma.user.findUnique({
+			where: { id: userId },
+		});
+
+		if (!user) {
+			throw new AppError(401, "User not found. Please log in again.");
+		}
+
+		if (
+			user.status === "BLOCKED" ||
+			user.status === "DELETED" ||
+			user.isDeleted
+		) {
+			throw new AppError(
+				403,
+				"Your account has been blocked. Please contact support.",
+			);
+		}
+
+		if (requiredRoles.length && !requiredRoles.includes(user.role)) {
+			throw new AppError(
+				403,
 				"Forbidden. You don't have permission to access this resource.",
 			);
 		}
 
-		const user = await prisma.user.findUnique({
-			where: {
-				id: userId,
-				email,
-				name,
-				role,
-			},
-		});
-
-		if (!user) {
-					throw new AppError(401, "User not found. Please log in again.");
-		}
-
-			if (user.status === "BLOCKED" || user.status === "DELETED" || user.isDeleted) {
-					throw new AppError(403, "Your account has been blocked. Please contact support.");
-		}
-
 		req.user = {
-			email,
-			name,
-			userId,
-			role,
+			email: user.email,
+			name: user.name,
+			userId: user.id,
+			role: user.role,
 		};
 
 		next();

@@ -2,9 +2,10 @@ import type { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import { Prisma } from "../../generated/prisma/client";
 import config from "../config";
+import { AppError } from "../utils/AppError";
 
 export const globalErrorHandler = async (
-	err: any,
+	err: unknown,
 	_req: Request,
 	res: Response,
 	_next: NextFunction,
@@ -14,9 +15,10 @@ export const globalErrorHandler = async (
 	}
 
 	let statusCode: number = httpStatus.INTERNAL_SERVER_ERROR;
-	let errorMessage = err.message || "Internal Server Error";
-	const errorName = err.name || "Internal Server Error";
-	if (typeof err.statusCode === "number") {
+	let errorMessage =
+		err instanceof Error ? err.message : "Internal Server Error";
+	const errorName = err instanceof Error ? err.name : "Internal Server Error";
+	if (err instanceof AppError) {
 		statusCode = err.statusCode;
 	}
 	// let errorDetails = err.stack
@@ -52,16 +54,22 @@ export const globalErrorHandler = async (
 		errorMessage = err.message;
 	}
 
+	const isOperationalError =
+		err instanceof AppError ||
+		err instanceof Prisma.PrismaClientValidationError ||
+		err instanceof Prisma.PrismaClientKnownRequestError ||
+		err instanceof Prisma.PrismaClientInitializationError;
+	const isDev = config.node_env === "development";
+
 	res.status(statusCode).json({
 		success: false,
-		statusCode: statusCode || httpStatus.INTERNAL_SERVER_ERROR,
-		name:
-			config.node_env === "development" ? errorName : "Internal Server Error",
+		statusCode,
+		name: isDev || isOperationalError ? errorName : "Internal Server Error",
 		message:
-			config.node_env === "development"
+			isDev || isOperationalError || statusCode < 500
 				? errorMessage
 				: "Internal Server Error",
-		error: config.node_env === "development" ? err : undefined,
-		stack: config.node_env === "development" ? err.stack : undefined,
+		error: isDev ? err : undefined,
+		stack: isDev && err instanceof Error ? err.stack : undefined,
 	});
 };
