@@ -11,7 +11,7 @@
   "crons": [
     {
       "path": "/api/cron/delete-unverified-doctors",
-      "schedule": "*/10 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }

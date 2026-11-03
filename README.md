@@ -97,9 +97,10 @@ The deployed API is available at:
 https://your-project.vercel.app/api/v1
 ```
 
-Do not rely on `node-cron` for Vercel execution. Vercel invokes
-`/api/cron/delete-unverified-doctors` every ten minutes. The endpoint accepts
-Vercel's cron authorization header when `CRON_SECRET` is configured.
+Do not rely on `node-cron` for Vercel execution. Vercel Hobby invokes `/api/cron/delete-unverified-doctors` once per day at
+00:00 UTC. The endpoint accepts Vercel's cron authorization header when
+`CRON_SECRET` is configured. The local `node-cron` process still runs every
+ten minutes when using `npm run dev` or `npm start` outside Vercel.
 
 The default health endpoints are:
 
