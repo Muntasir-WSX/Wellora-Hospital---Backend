@@ -19,7 +19,7 @@ const createPrescription = async (payload : ICreatePrescriptionPayload, user : R
         throw new AppError(httpStatus.NOT_FOUND, "Doctor Profile Not Found");
     }
 
-    const appointment = await prisma.apppointment.findUnique({
+    const appointment = await prisma.appointment.findUnique({
         where: { id: payload.appointmentId, doctorId : doctor.id },
         include: { patient: true },
     });
@@ -121,7 +121,7 @@ const createPrescription = async (payload : ICreatePrescriptionPayload, user : R
         },
     );
 
-    const updatedAppointment = await prisma.apppointment.update({
+    const updatedAppointment = await prisma.appointment.update({
         where: { id: appointment.id },
         data: {
             prescriptionUrl: uploadResult.secure_url,
@@ -147,7 +147,7 @@ const createPrescription = async (payload : ICreatePrescriptionPayload, user : R
 
 
 const getSinglePrescription = async (appointmentId: string, user: RequestUser) => {
-    const appointment = await prisma.apppointment.findUnique({
+    const appointment = await prisma.appointment.findUnique({
         where: { id: appointmentId },
         include: {
             patient: { select: { id: true, name: true, userId: true } },

@@ -39,13 +39,13 @@ const getAdminAnalytics = async () => {
         where: { isDeleted: false },
     });
 
-    const totalAppointments = await prisma.apppointment.count();
+    const totalAppointments = await prisma.appointment.count();
 
-    const totalCompletedAppointments = await prisma.apppointment.count({
+    const totalCompletedAppointments = await prisma.appointment.count({
         where: { status: AppointmentStatus.COMPLETED },
     });
 
-    const totalCancelledAppointments = await prisma.apppointment.count({
+    const totalCancelledAppointments = await prisma.appointment.count({
         where: { status: AppointmentStatus.CANCELLED },
     });
 
@@ -98,19 +98,19 @@ const getPatientAnalytics = async (user : RequestUser) => {
         throw new AppError(httpStatus.NOT_FOUND, "Patient Profile Not Found");
     }
 
-    const totalAppointments = await prisma.apppointment.count({
+    const totalAppointments = await prisma.appointment.count({
         where: { patientId: patient.id },
     });
 
-    const upcomingAppointments = await prisma.apppointment.count({
+    const upcomingAppointments = await prisma.appointment.count({
         where: { patientId: patient.id, status: AppointmentStatus.CONFIRMED },
     });
 
-    const completedAppointments = await prisma.apppointment.count({
+    const completedAppointments = await prisma.appointment.count({
         where: { patientId: patient.id, status: AppointmentStatus.COMPLETED },
     });
 
-    const cancelledAppointments = await prisma.apppointment.count({
+    const cancelledAppointments = await prisma.appointment.count({
         where: { patientId: patient.id, status: AppointmentStatus.CANCELLED },
     });
 
@@ -174,23 +174,23 @@ const getDoctorAnalytics = async (user : RequestUser) => {
         },
     });
 
-    const totalAppointments = await prisma.apppointment.count({
+    const totalAppointments = await prisma.appointment.count({
         where: { doctorId: doctor.id },
     });
 
-    const upcomingAppointments = await prisma.apppointment.count({
+    const upcomingAppointments = await prisma.appointment.count({
         where: { doctorId: doctor.id, status: AppointmentStatus.CONFIRMED },
     });
 
-    const ongoingAppointments = await prisma.apppointment.count({
+    const ongoingAppointments = await prisma.appointment.count({
         where: { doctorId: doctor.id, status: AppointmentStatus.ONGOING },
     });
 
-    const completedAppointments = await prisma.apppointment.count({
+    const completedAppointments = await prisma.appointment.count({
         where: { doctorId: doctor.id, status: AppointmentStatus.COMPLETED },
     });
 
-    const cancelledAppointments = await prisma.apppointment.count({
+    const cancelledAppointments = await prisma.appointment.count({
         where: { doctorId: doctor.id, status: AppointmentStatus.CANCELLED },
     });
 

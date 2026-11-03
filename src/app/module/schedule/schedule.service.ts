@@ -309,7 +309,7 @@ const updateSchedule = async (scheduleId : string, payload : IUpdateSchedulePayl
     //     updateData.meetingLink = payload.meetingLink || schedule.meetingLink
     // }
 
-    payload.meetingLink = payload.meetingLink || schedule.meetingLink
+    payload.meetingLink = payload.meetingLink || schedule.meetingLink || undefined
     payload.startDateTime = payload.startDateTime || schedule.startDateTime
     payload.endDateTime = payload.endDateTime || schedule.endDateTime
 
