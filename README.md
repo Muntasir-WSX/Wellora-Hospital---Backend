@@ -69,6 +69,38 @@ npm run build     # Type-check and compile TypeScript
 npm start         # Start the compiled application
 ```
 
+### Deploying to Vercel
+
+This repository exposes the Express application through the Vercel Node.js
+Function at `api/index.ts`. The included `vercel.json` routes all application
+requests to that function and configures the unverified-doctor cleanup as a
+Vercel Cron Job.
+
+1. Import the GitHub repository into Vercel.
+2. Keep the project root set to the repository root.
+3. Add every required environment variable from the table below to the
+   Production environment.
+4. Add `CRON_SECRET` and redeploy.
+
+Set the Vercel project Node.js runtime to 24.x, matching `package.json`.
+
+Vercel uses:
+
+```text
+Install Command: npm install
+Build Command: npm run build
+```
+
+The deployed API is available at:
+
+```text
+https://your-project.vercel.app/api/v1
+```
+
+Do not rely on `node-cron` for Vercel execution. Vercel invokes
+`/api/cron/delete-unverified-doctors` every ten minutes. The endpoint accepts
+Vercel's cron authorization header when `CRON_SECRET` is configured.
+
 The default health endpoints are:
 
 ```text
