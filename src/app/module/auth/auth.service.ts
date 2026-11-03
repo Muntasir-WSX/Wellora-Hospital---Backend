@@ -154,10 +154,13 @@ const verifyPatientEmail = async (payload: IVerifyEmailPayload) => {
 					name: patientPayload.name,
 					email: patientPayload.email,
 					contactNumber: patientPayload?.patient?.contactNumber || "",
+					address: patientPayload?.patient?.address,
+					gender: patientPayload?.patient?.gender,
+					dateOfBirth: patientPayload?.patient?.dateOfBirth,
+					bloodGroup: patientPayload?.patient?.bloodGroup,
 				},
 			},
 		},
-		omit: { password: true },
 		include: { patient: true },
 	});
 
@@ -236,8 +239,13 @@ const loginUser = async (payload: ILoginUserPayload) => {
 	}
 
 	if (user.role === Role.DOCTOR) {
-		const doctor = await prisma.doctor.findUnique({ where: { userId: user.id } });
-		if (!doctor || doctor.verificationStatus !== DoctorVerificationStatus.APPROVED) {
+		const doctor = await prisma.doctor.findUnique({
+			where: { userId: user.id },
+		});
+		if (
+			!doctor ||
+			doctor.verificationStatus !== DoctorVerificationStatus.APPROVED
+		) {
 			throw new Error("Doctor application is not approved");
 		}
 	}

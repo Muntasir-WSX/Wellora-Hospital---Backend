@@ -17,6 +17,21 @@ const PatientRegistrationZodSchema = z.object({
 	patient: z
 		.object({
 			contactNumber: z.string().optional(),
+			address: z.string().trim().optional(),
+			gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
+			dateOfBirth: z.coerce.date().optional(),
+			bloodGroup: z
+				.enum([
+					"A_POSITIVE",
+					"A_NEGATIVE",
+					"B_POSITIVE",
+					"B_NEGATIVE",
+					"AB_POSITIVE",
+					"AB_NEGATIVE",
+					"O_POSITIVE",
+					"O_NEGATIVE",
+				])
+				.optional(),
 		})
 		.optional(),
 });

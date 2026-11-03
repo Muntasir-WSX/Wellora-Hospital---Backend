@@ -1,4 +1,4 @@
-import type { Role } from "../../../generated/prisma/browser";
+import type { BloodGroup, Role } from "../../../generated/prisma/browser";
 
 export interface ILoginUserPayload {
 	email: string;
@@ -6,12 +6,16 @@ export interface ILoginUserPayload {
 }
 
 export interface IRegisterPatientPayload {
-    name: string;
-    email: string;
-    password: string;
-    patient?: { 
-        contactNumber?: string;
-    };
+	name: string;
+	email: string;
+	password: string;
+	patient?: {
+		contactNumber?: string;
+		address?: string;
+		gender?: "MALE" | "FEMALE" | "OTHER";
+		dateOfBirth?: Date;
+		bloodGroup?: BloodGroup;
+	};
 }
 export interface IVerifyEmailPayload {
 	email: string;

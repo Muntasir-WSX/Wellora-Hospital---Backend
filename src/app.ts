@@ -17,9 +17,11 @@ import { AnalyticsRoutes } from "./app/module/analytics/analytics.route";
 import { AppointementRoutes } from "./app/module/appointment/appointmentRoute";
 import { AuthRoutes } from "./app/module/auth/auth.route";
 import { DoctorRoutes } from "./app/module/doctor/doctor.route";
+import { DepartmentRoutes } from "./app/module/department/department.route";
 import { PaymentRoutes } from "./app/module/payments/payment.route";
 import { PrescriptionRoutes } from "./app/module/prescription/prescription.route";
 import { ScheduleRoutes } from "./app/module/schedule/schedule.route";
+import { ReviewRoutes } from "./app/module/review/review.route";
 import { UserRoutes } from "./app/module/user/user.route";
 
 const app: Application = express();
@@ -42,25 +44,31 @@ app.use("/api/v1/auth", AuthRoutes);
 app.use("/api/v1/user", UserRoutes);
 app.use("/api/v1/appointment", AppointementRoutes);
 app.use("/api/v1/doctor", DoctorRoutes);
+app.use("/api/v1/department", DepartmentRoutes);
 app.use("/api/v1/schedule", ScheduleRoutes);
 app.use("/api/v1/payment", PaymentRoutes);
 app.use("/api/v1/prescription", PrescriptionRoutes);
 app.use("/api/v1/analytics", AnalyticsRoutes);
+app.use("/api/v1/review", ReviewRoutes);
 
-app.get("/test", auth(Role.ADMIN, Role.SUPER_ADMIN), async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		const grantIdTokenResult = await getBkashIdToken();
+app.get(
+	"/test",
+	auth(Role.ADMIN, Role.SUPER_ADMIN),
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const grantIdTokenResult = await getBkashIdToken();
 
-		res.status(httpStatus.OK).json({
-			success: true,
-			message: "Welcome to PH Healthcare System Backend",
-			data: null,
-		});
-	} catch (error) {
-		console.log(error);
-		next(error);
-	}
-});
+			res.status(httpStatus.OK).json({
+				success: true,
+				message: "Welcome to PH Healthcare System Backend",
+				data: null,
+			});
+		} catch (error) {
+			console.log(error);
+			next(error);
+		}
+	},
+);
 
 // Basic route
 app.get("/", async (req: Request, res: Response) => {

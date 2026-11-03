@@ -46,6 +46,7 @@ export const ApplyAsDoctorValidationZodSchema = z.object({
 });
 
 export const UpdateDoctorProfileValidationZodSchema = z.object({
+	departmentId: z.string().min(1).optional(),
 	address: z
 		.string()
 		.trim()
