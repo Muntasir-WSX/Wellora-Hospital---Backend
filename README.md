@@ -1,214 +1,278 @@
-# WellOra Hospital — Backend
+# WellOra Hospital Backend
 
-REST API for the **WellOra Hospital** platform: patients book consultations, doctors manage schedules, and administrators oversee hospital operations. This repository contains the backend codebase.
+Production-oriented REST API for the WellOra Hospital Management Platform. The
+backend provides authentication, role-based access control, doctor onboarding,
+schedule management, appointments, bKash payments, prescriptions, reviews,
+departments, analytics, email notifications, and file storage.
 
-**Stack:** Node.js · Express 5 · TypeScript · Prisma 7 · PostgreSQL · JWT auth
+## Technology Stack
 
----
-
-## Where the project stands today
-
-This is an early-stage build. Currently, **authentication is fully functional** — users can register as patients, log in, fetch their profile information, and handle token refreshing. Features like appointment bookings, doctor scheduling, prescription management, and payment integrations are planned as per the project requirements.
-
-Please review the [Known limitations](https://www.google.com/search?q=%2523known-limitations&utm_source=gemini) section before troubleshooting.
-
----
+- Node.js 20+
+- Express 5
+- TypeScript
+- Prisma 7
+- PostgreSQL
+- Redis
+- JWT and Google OAuth
+- bKash Tokenized Checkout
+- Cloudinary
+- Nodemailer
+- Zod
 
 ## Prerequisites
 
-| Tool | Version | Check with |
-| --- | --- | --- |
-| **Node.js** | 20+ | `node -v` |
-| **PostgreSQL** | 14+ | `psql -V` |
+- Node.js 20 or later
+- PostgreSQL 14 or later
+- Redis
+- Cloudinary account
+- SMTP account
+- bKash merchant credentials for payment features
 
-Any package manager works (`npm`, `pnpm`, `yarn`, `bun`). The examples below use `npm`.
-
----
-
-## Getting started
-
-### 1. Install dependencies
+## Installation
 
 ```bash
 npm install
-
+copy .env.example .env
 ```
 
-### 2. Set up your environment file
-
-```bash
-cp .env.example .env
-
-```
-
-Open `.env` and configure your `DATABASE_URL` pointing to your local or hosted PostgreSQL instance:
-
-```env
-DATABASE_URL="postgresql://YOUR_USERNAME:YOUR_PASSWORD@localhost:5432/wellora_hospital?schema=public"
-
-```
-
-*(The database doesn't need to exist beforehand — `prisma migrate dev` creates it automatically.)*
-
-### 3. Generate the Prisma client
+Configure the required values in `.env`, then generate the Prisma Client:
 
 ```bash
 npx prisma generate
-
 ```
 
-Prisma writes a typed client into `src/generated/prisma`. This folder is git-ignored, so a fresh clone requires this step to compile correctly.
+### Database setup
 
-### 4. Run the migrations
+For a new development database:
 
 ```bash
 npx prisma migrate dev
-
 ```
 
-This applies the database schema migrations.
-
-### 5. Start the development server
+If the database already contains tables created outside the current migration
+history, do not run `prisma migrate reset`. Back up the database first, review
+the schema drift, and use the appropriate migration or push workflow:
 
 ```bash
-npm run dev
-
+npx prisma migrate status
+npx prisma db push
+npx prisma generate
 ```
 
-You should see:
+Never use `prisma migrate reset` on a shared or production database.
+
+## Running the Application
+
+```bash
+npm run dev       # Development server with hot reload
+npm run build     # Type-check and compile TypeScript
+npm start         # Start the compiled application
+```
+
+The default health endpoints are:
 
 ```text
-Connected to the database successfully.
-Server is running on port 5000
-
+GET /
+GET /test
 ```
 
-Confirm it's up:
+## Environment Configuration
 
-```bash
-curl http://localhost:5000/
-# {"success":true,"message":"Welcome to WellOra Hospital System Backend"}
+The complete configuration is mapped in `src/app/config/index.ts`.
 
-```
-
----
-
-## Environment variables
-
-Configured in `src/app/config/index.ts`:
-
-| Variable | Description |
+| Variable group | Variables |
 | --- | --- |
-| `NODE_ENV` | Environment mode (`development` / `production`) |
-| `PORT` | HTTP server port |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `JWT_ACCESS_SECRET` | Secret key for access tokens |
-| `JWT_REFRESH_SECRET` | Secret key for refresh tokens |
-| `JWT_ACCESS_EXPIRES_IN` | Access token lifespan (e.g., `15m`, `1d`) |
-| `JWT_REFRESH_EXPIRES_IN` | Refresh token lifespan |
-| `BCRYPT_SALT_ROUNDS` | Salt rounds for hashing |
-| `FRONTEND_URL` | Allowed origin for CORS |
+| Application | `NODE_ENV`, `PORT`, `BACKEND_URL`, `FRONTEND_URL` |
+| Database | `DATABASE_URL` |
+| JWT | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_IN` |
+| Security | `BCRYPT_SALT_ROUNDS` |
+| OAuth | `GOOGLE_CLIENT_ID` |
+| Redis | `REDIS_USER`, `REDIS_PASSWORD`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_TLS` |
+| SMTP | `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_SENDER` |
+| Cloudinary | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` |
+| bKash | `BKASH_BASE_URL`, `BKASH_USERNAME`, `BKASH_PASSWORD`, `BKASH_APP_KEY`, `BKASH_APP_SECRET`, `BKASH_CALLBACK_URL` |
+| Seed accounts | `SUPER_ADMIN_*`, `TESTER_ADMIN_*`, `TESTER_DOCTOR_*` |
 
----
+Do not commit `.env` files or credentials.
 
-## Project structure
+## API Overview
+
+Base URL:
 
 ```text
-src/
-├── server.ts                       # Database connection and server initialization
-├── app.ts                          # Express configuration (CORS, middleware, routes)
-├── generated/prisma/               # Generated Prisma client (git-ignored)
-└── app/
-    ├── config/index.ts             # Environment variables mapping
-    ├── lib/prisma.ts               # Shared PrismaClient instance
-    ├── middleware/
-    │   ├── checkAuth.ts            # JWT verification and role-based guard
-    │   ├── globalErrorHandler.ts   # Global exception handler
-    │   └── notFound.ts             # 404 handler
-    ├── utils/
-    │   ├── catchAsync.ts           # Async handler wrapper
-    │   ├── jwt.ts                  # Token utilities
-    │   └── sendResponse.ts         # Standardized API response format
-    └── module/
-        └── auth/                   # Authentication module
-            ├── auth.route.ts
-            ├── auth.controller.ts
-            ├── auth.service.ts
-            └── auth.interface.ts
-
-prisma/
-├── schema/
-│   ├── schema.prisma               # Generator & datasource config
-│   ├── user.prisma
-│   ├── patient.prisma
-│   └── enums.prisma                # Roles, Statuses, Genders
-└── migrations/                     # SQL migration history
-
+http://localhost:5000/api/v1
 ```
 
----
+### Authentication
 
-## API Endpoints
+| Method | Endpoint | Access |
+| --- | --- | --- |
+| `POST` | `/auth/register` | Public |
+| `POST` | `/auth/verify-email` | Public |
+| `POST` | `/auth/login` | Public |
+| `POST` | `/auth/google` | Public |
+| `POST` | `/auth/refresh-token` | Public |
+| `GET` | `/auth/me` | Authenticated |
+| `POST` | `/auth/forgot-password` | Public |
+| `POST` | `/auth/reset-password` | Public |
 
-Base URL: `http://localhost:5000`
+### Users and doctors
 
-| Method | Endpoint | Auth Required | Description |
-| --- | --- | --- | --- |
-| `GET` | `/` | No | Health check |
-| `POST` | `/api/v1/auth/register` | No | Register a new patient account |
-| `POST` | `/api/v1/auth/login` | No | Authenticate user & issue tokens |
-| `GET` | `/api/v1/auth/me` | Yes | Fetch authenticated user profile |
-| `POST` | `/api/v1/auth/refresh-token` | No | Generate a new access token |
+| Method | Endpoint | Access |
+| --- | --- | --- |
+| `PATCH` | `/user/profile-image` | Authenticated |
+| `POST` | `/doctor/apply-as-doctor` | Public |
+| `POST` | `/doctor/apply-as-doctor/verify-email` | Public |
+| `POST` | `/doctor/approve-doctor` | Admin |
+| `GET` | `/doctor/all-doctors` | Admin |
+| `PATCH` | `/doctor/update-my-profile` | Doctor |
+| `GET` | `/doctor/public/available-today` | Public |
+| `GET` | `/doctor/public/all-doctors` | Public |
+| `GET` | `/doctor/public/:doctorId` | Public |
 
-### Response Format
+Doctor applications support multipart uploads for a resume and additional
+documents.
 
-All API responses follow a uniform envelope structure:
+### Departments
+
+| Method | Endpoint | Access |
+| --- | --- | --- |
+| `GET` | `/department` | Public |
+| `POST` | `/department` | Admin |
+| `PATCH` | `/department/:departmentId` | Admin |
+| `DELETE` | `/department/:departmentId` | Admin |
+
+### Schedules and appointments
+
+| Method | Endpoint | Access |
+| --- | --- | --- |
+| `POST` | `/schedule/create-schedule` | Doctor |
+| `GET` | `/schedule/my-schedules` | Doctor |
+| `PATCH` | `/schedule/:scheduleId` | Doctor |
+| `PATCH` | `/schedule/publish/:scheduleId` | Doctor |
+| `DELETE` | `/schedule/:scheduleId` | Doctor |
+| `POST` | `/appointment/book-appointment` | Patient |
+| `POST` | `/appointment/pay-appointment` | Patient |
+| `GET` | `/appointment/book-appointment/payment/callback` | bKash |
+| `POST` | `/appointment/cancel-appointment` | Patient/Admin |
+| `PATCH` | `/appointment/update-status/:appointmentId` | Doctor |
+| `GET` | `/appointment/my-appointments` | Patient |
+| `GET` | `/appointment/doctor-appointments` | Doctor |
+| `GET` | `/appointment/all-appointments` | Admin |
+| `GET` | `/appointment/:appointmentId` | Authenticated |
+
+Appointments support `ONLINE` and `IN_PERSON` types.
+
+### Payments
+
+| Method | Endpoint | Access |
+| --- | --- | --- |
+| `GET` | `/payment/my-payments` | Patient |
+| `GET` | `/payment/all-payments` | Admin |
+| `GET` | `/payment/:paymentId` | Patient/Admin |
+
+The current payment integration uses bKash Tokenized Checkout.
+
+### Prescriptions and reviews
+
+| Method | Endpoint | Access |
+| --- | --- | --- |
+| `POST` | `/prescription/create-prescription` | Doctor |
+| `GET` | `/prescription/:appointmentId` | Patient/Doctor/Admin |
+| `POST` | `/review` | Patient |
+| `GET` | `/review/doctor/:doctorId` | Public |
+
+Reviews can only be created for completed appointments. Prescriptions are
+stored as structured data and also published as PDF files through Cloudinary.
+
+### Analytics
+
+Analytics endpoints are available under `/analytics` for administrator,
+patient, and doctor dashboards according to route-level authorization.
+
+## Response Contract
+
+Successful responses use this envelope:
 
 ```json
 {
   "success": true,
   "statusCode": 200,
-  "message": "Operation successful",
-  "data": {}
+  "message": "Resource retrieved successfully",
+  "data": {},
+  "meta": {}
 }
-
 ```
 
----
+Errors use the same top-level status fields:
 
-## Roles & Authentication
+```json
+{
+  "success": false,
+  "statusCode": 400,
+  "message": "Validation error"
+}
+```
 
-The system supports four user roles in the schema: `SUPER_ADMIN`, `ADMIN`, `DOCTOR`, and `PATIENT`.
+Access tokens are accepted through the `accessToken` cookie or an
+`Authorization: Bearer <token>` header.
 
-* **Patient Registration:** Public registration defaults to the `PATIENT` role.
-* **Elevated Roles:** To test admin or doctor accounts, register a user normally and update their `role` column directly in the database (e.g., via `npx prisma studio` at `http://localhost:5555`), then log back in.
+## Data Model
 
----
+The Prisma schema is split across `prisma/schema/` and includes:
 
-## Known limitations
+- Users, patients, and doctors
+- Departments and doctor assignments
+- Doctor schedules and appointments
+- Payments and bKash transaction metadata
+- Structured prescriptions and generated PDF references
+- Patient reviews and doctor ratings
 
-* **HTTP Status Codes on Errors:** The global error handler processes status codes internally but currently defaults to returning HTTP 500 for responses; rely on the error `message` for debugging.
-* **Request Validation:** Incoming payloads currently lack schema validation (e.g., Zod validation), relying primarily on database constraints.
-* **Tests:** `npm test` is a placeholder.
-
----
-
-## Scripts
+After schema changes, always run:
 
 ```bash
-npm run dev     # Start development server with auto-reload (tsx watch)
-npm run build   # Type-check with TypeScript compiler
-npm run start   # Run the application in production mode
-
+npx prisma format
+npx prisma validate
+npx prisma generate
+npx tsc --noEmit
 ```
 
----
+## Project Structure
 
-## Troubleshooting
+```text
+src/
+├── app.ts                         # Express application and route registration
+├── server.ts                      # Database, Redis, mailer, seed, and startup
+├── generated/prisma/              # Generated Prisma Client
+└── app/
+    ├── config/                    # Environment configuration
+    ├── lib/                       # Prisma, Redis, bKash, mail, storage utilities
+    ├── middleware/               # Auth, validation, error, and 404 middleware
+    ├── module/                   # Feature modules
+    │   ├── analytics/
+    │   ├── appointment/
+    │   ├── auth/
+    │   ├── department/
+    │   ├── doctor/
+    │   ├── payments/
+    │   ├── prescription/
+    │   ├── review/
+    │   ├── schedule/
+    │   └── user/
+    ├── templates/                # EJS email templates
+    └── utils/                    # JWT, errors, responses, and seed helpers
+prisma/
+├── schema/                       # Prisma schema modules
+└── migrations/                   # Migration history
+```
 
-* **`Cannot find module '.../src/generated/prisma/client'`**
-Run `npx prisma generate` to build the Prisma client.
-* **`Can't reach database server`**
-Ensure PostgreSQL is running and your `DATABASE_URL` credentials are accurate.
-* **Login/Registration fails unexpectedly**
-Verify that your JWT secrets are correctly configured in your `.env` file.
+## Quality Checks
+
+```bash
+npm run format:check
+npm run lint:check
+npx tsc --noEmit
+```
+
+The test script is currently a placeholder. Add automated API and integration
+tests before treating the service as production-certified.
