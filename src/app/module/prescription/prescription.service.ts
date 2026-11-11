@@ -62,7 +62,7 @@ const createPrescription = async (
 
 	//pdf contents
 
-	pdfDocument.fontSize(20).text("PH Healthcare System", { align: "center" });
+	pdfDocument.fontSize(20).text("WellOra", { align: "center" });
 	pdfDocument.fontSize(14).text("Prescription", { align: "center" });
 	pdfDocument.moveDown(2);
 
@@ -144,7 +144,7 @@ const createPrescription = async (
 	await transporter.sendMail({
 		from: config.email_sender,
 		to: appointment.patient.email,
-		subject: "Your Prescription - PH Healthcare System",
+		subject: "Your Prescription - WellOra",
 		text: "Please find your prescription attached.",
 		attachments: [
 			{

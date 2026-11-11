@@ -441,7 +441,7 @@ const bookAppointmentCallback = async (query: Record<string, any>) => {
 
 				pdfDocument
 					.fontSize(20)
-					.text("PH Healthcare System", { align: "center" });
+					.text("WellOra", { align: "center" });
 				pdfDocument
 					.fontSize(14)
 					.text("Appointment Invoice", { align: "center" });
@@ -481,7 +481,7 @@ const bookAppointmentCallback = async (query: Record<string, any>) => {
 				await transporter.sendMail({
 					from: config.email_sender,
 					to: appointment.patient.email,
-					subject: "Your Appointment Invoice - PH Healthcare System",
+					subject: "Your Appointment Invoice - WellOra",
 					text: "Thank you for booking an appointment. Please find your invoice attached.",
 					attachments: [
 						{

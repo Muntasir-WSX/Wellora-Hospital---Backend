@@ -60,7 +60,7 @@ app.get(
 
 			res.status(httpStatus.OK).json({
 				success: true,
-				message: "Welcome to PH Healthcare System Backend",
+				message: "Welcome to WellOra Backend",
 				data: null,
 			});
 		} catch (error) {
@@ -74,7 +74,7 @@ app.get(
 app.get("/", async (req: Request, res: Response) => {
 	res.status(httpStatus.OK).json({
 		success: true,
-		message: "Welcome to PH Healthcare System Backend",
+		message: "Welcome to WellOra Backend",
 	});
 });
 
