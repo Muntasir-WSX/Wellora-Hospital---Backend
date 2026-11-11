@@ -10,12 +10,29 @@ import {
 
 const applyAsDoctor = catchAsync(async (req: Request, res: Response) => {
 	const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-	console.log({ files });
 	const resume = files?.["resume"] ? files["resume"][0] : null;
 	const additionalFiles = files?.["additionalFiles"] || [];
+	const rawData = req.body?.data;
+
+	if (typeof rawData !== "string") {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"Doctor application data is required",
+		);
+	}
+
+	let parsedData: unknown;
+	try {
+		parsedData = JSON.parse(rawData);
+	} catch {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"Doctor application data must be valid JSON",
+		);
+	}
 
 	const zodValidationResult = ApplyAsDoctorValidationZodSchema.safeParse(
-		JSON.parse(req.body.data),
+		parsedData,
 	);
 
 	if (!zodValidationResult.success) {

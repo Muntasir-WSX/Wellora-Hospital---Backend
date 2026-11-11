@@ -32,36 +32,33 @@ const applyAsDoctor = async (
 		throw new AppError(httpStatus.CONFLICT, "User Already Exists With This Email");
 	}
 
-	const resumeUploadResult = await new Promise<UploadApiResponse>(
-		(resolve, reject) => {
-			cloudinary.uploader
-				.upload_stream(
-					{
-						resource_type: "auto",
-					},
+	const resumeUploadResult = resume
+		? await new Promise<UploadApiResponse>((resolve, reject) => {
+				cloudinary.uploader
+					.upload_stream(
+						{
+							resource_type: "auto",
+						},
+						(error, result) => {
+							if (error) {
+								return reject(error);
+							}
 
-					async (error, result) => {
-						if (error) {
-							return reject(error);
-						}
+							if (!result) {
+								return reject(
+									new AppError(
+										httpStatus.INTERNAL_SERVER_ERROR,
+										"No result returned from Cloudinary",
+									),
+								);
+							}
 
-						if (!result) {
-							return reject(
-								new AppError(
-									httpStatus.INTERNAL_SERVER_ERROR,
-									"No result returned from Cloudinary",
-								),
-							);
-						}
-
-						resolve(result);
-					},
-				)
-				.end(resume?.buffer);
-		},
-	);
-
-	console.log({ resumeUploadResult });
+							resolve(result);
+						},
+					)
+					.end(resume.buffer);
+			})
+		: null;
 
 	const additionalFilesUploadResults = await Promise.all(
 		additionalFiles.map((file) => {
@@ -89,8 +86,6 @@ const applyAsDoctor = async (
 		}),
 	);
 
-	console.log({ additionalFilesUploadResults });
-
 	const randomDoctorPassword = Math.random().toString(36).slice(-8);
 
 	const hashedPassword = await bcrypt.hash(
@@ -109,8 +104,8 @@ const applyAsDoctor = async (
 					name: payload.user.name,
 					email: payload.user.email,
 					...payload.doctor,
-					resume: resumeUploadResult.secure_url,
-					resumePublicId: resumeUploadResult.public_id,
+					resume: resumeUploadResult?.secure_url,
+					resumePublicId: resumeUploadResult?.public_id,
 					additionalFiles: additionalFilesUploadResults.map((file) => ({
 						url: file.secure_url,
 						publicId: file.public_id,
