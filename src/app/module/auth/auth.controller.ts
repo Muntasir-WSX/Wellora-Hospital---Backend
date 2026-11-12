@@ -91,6 +91,25 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
+const logoutUser = catchAsync(async (_req: Request, res: Response) => {
+    const cookieOptions = {
+        httpOnly: true,
+        secure: config.node_env === "production",
+        sameSite: (config.node_env === "production" ? "none" : "lax") as "none" | "lax",
+        path: "/",
+    };
+
+    res.clearCookie("accessToken", cookieOptions);
+    res.clearCookie("refreshToken", cookieOptions);
+
+    sendResponse(res, {
+        statusCode: httpStatus.OK,
+        success: true,
+        message: "User logged out successfully",
+        data: null,
+    });
+});
+
 const getMe = catchAsync(async (req: Request, res: Response) => {
     const user = req.user as unknown as IRequestUser;
 
@@ -195,10 +214,13 @@ const resetPassword = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
+
+
 export const AuthController = {
     registerPatient,
     verifyPatientEmail,
     loginUser,
+    logoutUser,
     getMe,
     refreshToken,
     googleLogin,
