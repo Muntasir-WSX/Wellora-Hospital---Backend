@@ -12,6 +12,14 @@ const applyAsDoctor = catchAsync(async (req: Request, res: Response) => {
 	const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 	const resume = files?.["resume"] ? files["resume"][0] : null;
 	const additionalFiles = files?.["additionalFiles"] || [];
+
+	if (!resume) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"Resume file is required for doctor application",
+		);
+	}
+
 	const rawData = req.body?.data;
 
 	if (typeof rawData !== "string") {
@@ -54,17 +62,17 @@ const applyAsDoctor = catchAsync(async (req: Request, res: Response) => {
 	});
 });
 const verifyDoctorEmail = catchAsync(async (req: Request, res: Response) => {
-	
-	const payload = req.body;
+    const payload = req.body;
 
-	const result = await DoctorServices.verifyDoctorEmail(payload)
-	sendResponse(res, {
-		statusCode: httpStatus.OK,
-		success: true,
-		message: `Doctor Application ${payload.verificationStatus.toLowerCase()} successfully`,
-		data: result,
-	});
+    const result = await DoctorServices.verifyDoctorEmail(payload);
+    sendResponse(res, {
+        statusCode: httpStatus.OK,
+        success: true,
+        message: "Doctor Email Verified Successfully",
+        data: result,
+    });
 });
+
 const approveDoctor = catchAsync(async (req: Request, res: Response) => {
 	
 	const payload = req.body;

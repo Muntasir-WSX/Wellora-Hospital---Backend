@@ -18,142 +18,176 @@ import { AppError } from "../../utils/AppError.js";
 import { IApplyAsDoctorPayload, IApproveDoctorPayload, IUpdateDoctorProfilePayload, IVerifyDoctorEmailPayload } from "./doctor.interface.js";
 
 const applyAsDoctor = async (
-	payload: IApplyAsDoctorPayload,
-	resume: Express.Multer.File | null,
-	additionalFiles: Express.Multer.File[],
+    payload: IApplyAsDoctorPayload,
+    resume: Express.Multer.File,
+    additionalFiles: Express.Multer.File[],
 ) => {
-	const isUserExists = await prisma.user.findUnique({
-		where: {
-			email: payload.user.email,
-		},
-	});
+    // 1. Check if email already exists
+    const isUserExists = await prisma.user.findUnique({
+        where: {
+            email: payload.user.email,
+        },
+    });
 
-	if (isUserExists) {
-		throw new AppError(httpStatus.CONFLICT, "User Already Exists With This Email");
-	}
+    if (isUserExists) {
+        throw new AppError(httpStatus.CONFLICT, "User Already Exists With This Email");
+    }
 
-	const resumeUploadResult = resume
-		? await new Promise<UploadApiResponse>((resolve, reject) => {
-				cloudinary.uploader
-					.upload_stream(
-						{
-							resource_type: "auto",
-						},
-						(error, result) => {
-							if (error) {
-								return reject(error);
-							}
+    // 2. Check if licenseNumber already exists (Prevents Prisma P2002 500 Error)
+    const isLicenseExists = await prisma.doctor.findUnique({
+        where: {
+            licenseNumber: payload.doctor.licenseNumber,
+        },
+    });
 
-							if (!result) {
-								return reject(
-									new AppError(
-										httpStatus.INTERNAL_SERVER_ERROR,
-										"No result returned from Cloudinary",
-									),
-								);
-							}
+    if (isLicenseExists) {
+        throw new AppError(
+            httpStatus.CONFLICT,
+            "A doctor with this BMDC / License Number has already applied",
+        );
+    }
 
-							resolve(result);
-						},
-					)
-					.end(resume.buffer);
-			})
-		: null;
+    // 3. Upload Resume to Cloudinary safely
+    let resumeUploadResult: UploadApiResponse;
+    try {
+        resumeUploadResult = await new Promise<UploadApiResponse>(
+            (resolve, reject) => {
+                const stream = cloudinary.uploader.upload_stream(
+                    {
+                        resource_type: "auto",
+                        folder: "wellora/doctors/resumes",
+                    },
+                    (error, result) => {
+                        if (error) return reject(error);
+                        if (!result) return reject(new Error("No result returned from Cloudinary"));
+                        resolve(result);
+                    },
+                );
+                stream.end(resume.buffer);
+            },
+        );
+    } catch (err: any) {
+        throw new AppError(
+            httpStatus.BAD_GATEWAY,
+            `Failed to upload resume: ${err?.message || "Cloudinary error"}`,
+        );
+    }
 
-	const additionalFilesUploadResults = await Promise.all(
-		additionalFiles.map((file) => {
-			return new Promise<UploadApiResponse>((resolve, reject) => {
-				cloudinary.uploader
-					.upload_stream(
-						{
-							resource_type: "auto",
-						},
+    // 4. Upload Additional Files safely
+    let additionalFilesUploadResults: UploadApiResponse[] = [];
+    if (additionalFiles && additionalFiles.length > 0) {
+        try {
+            additionalFilesUploadResults = await Promise.all(
+                additionalFiles.map((file) => {
+                    return new Promise<UploadApiResponse>((resolve, reject) => {
+                        const stream = cloudinary.uploader.upload_stream(
+                            {
+                                resource_type: "auto",
+                                folder: "wellora/doctors/certificates",
+                            },
+                            (error, result) => {
+                                if (error) return reject(error);
+                                if (!result) return reject(new Error("No result returned from Cloudinary"));
+                                resolve(result);
+                            },
+                        );
+                        stream.end(file.buffer);
+                    });
+                }),
+            );
+        } catch (err: any) {
+            throw new AppError(
+                httpStatus.BAD_GATEWAY,
+                `Failed to upload additional files: ${err?.message || "Cloudinary error"}`,
+            );
+        }
+    }
 
-						async (error, result) => {
-							if (error) {
-								return reject(error);
-							}
+    // 5. Use user-provided password if available, otherwise generate random
+    const rawPassword =
+        (payload.user as any).password || Math.random().toString(36).slice(-8);
 
-							if (!result) {
-								return reject(new Error("No result returned from Cloudinary"));
-							}
+    const hashedPassword = await bcrypt.hash(
+        rawPassword,
+        Number(config.bcrypt_salt_rounds) || 10,
+    );
 
-							resolve(result);
-						},
-					)
-					.end(file.buffer);
-			});
-		}),
-	);
+    // 6. Create User & Doctor in DB
+    const { password: _ignoredPassword, ...safeUserData } = payload.user as any;
 
-	const randomDoctorPassword = Math.random().toString(36).slice(-8);
+    const doctorApplication = await prisma.user.create({
+        data: {
+            ...safeUserData,
+            password: hashedPassword,
+            role: Role.DOCTOR,
+            needPasswordChange: !(payload.user as any).password,
+            doctor: {
+                create: {
+                    name: payload.user.name,
+                    email: payload.user.email,
+                    ...payload.doctor,
+                    resume: resumeUploadResult.secure_url,
+                    resumePublicId: resumeUploadResult.public_id,
+                    additionalFiles: additionalFilesUploadResults.map((file) => ({
+                        url: file.secure_url,
+                        publicId: file.public_id,
+                    })),
+                },
+            },
+        },
+        omit: {
+            password: true,
+        },
+        include: {
+            doctor: true,
+        },
+    });
 
-	const hashedPassword = await bcrypt.hash(
-		randomDoctorPassword,
-		Number(config.bcrypt_salt_rounds),
-	);
+    // 7. Generate OTP, store in Redis & send Email
+    try {
+        const expirationSeconds = 60 * 60;
+        const otpKey = `doctor-application-otp:${payload.user.email}`;
+        const otpValue = crypto.randomInt(100000, 1000000).toString();
 
-	const doctorApplication = await prisma.user.create({
-		data: {
-			...payload.user,
-			password: hashedPassword,
-			role: Role.DOCTOR,
-			needPasswordChange: true,
-			doctor: {
-				create: {
-					name: payload.user.name,
-					email: payload.user.email,
-					...payload.doctor,
-					resume: resumeUploadResult?.secure_url,
-					resumePublicId: resumeUploadResult?.public_id,
-					additionalFiles: additionalFilesUploadResults.map((file) => ({
-						url: file.secure_url,
-						publicId: file.public_id,
-					})),
-				},
-			},
-		},
+        await redisClient.set(otpKey, otpValue, {
+            expiration: {
+                type: "EX",
+                value: expirationSeconds,
+            },
+        });
 
-		include: {
-			doctor: true,
-		},
-	});
+        const templatePath = path.join(
+            process.cwd(),
+            "src/app/templates/registration-user-otp.ejs",
+        );
 
+        const templateData = {
+            name: payload.user.name,
+            email: payload.user.email,
+            otp: otpValue,
+            expirationMinutes: expirationSeconds / 60,
+        };
 
-	const expirationSeconds = 60 * 60 
+        const html = await ejs.renderFile(templatePath, templateData);
 
-	const otpKey = `doctor-application-otp:${payload.user.email}`
-	const otpValue = crypto.randomInt(100000, 1000000).toString();
+        await transporter.sendMail({
+            from: config.email_sender,
+            to: payload.user.email,
+            subject: "Doctor Application - Email Verification",
+            html,
+        });
+    } catch (err: any) {
+        // Rollback created user if OTP/Email fails so user can retry cleanly
+        await prisma.doctor.deleteMany({ where: { email: payload.user.email } });
+        await prisma.user.deleteMany({ where: { email: payload.user.email } });
 
-	await redisClient.set(otpKey, otpValue, {
-		expiration: {
-			type: "EX",
-			value: expirationSeconds,
-		},
-	});
+        throw new AppError(
+            httpStatus.INTERNAL_SERVER_ERROR,
+            `Failed to send verification OTP email: ${err?.message || "Email/Redis service error"}`,
+        );
+    }
 
-	const tempatePath = path.join(
-		process.cwd(),
-		"src/app/templates/registration-user-otp.ejs",
-	);
-
-	const templateData = {
-		name: payload.user.name,
-		email : payload.user.email,
-		otp: otpValue,
-		expirationMinutes: expirationSeconds / 60,
-	};
-
-	const html = await ejs.renderFile(tempatePath, templateData);
-
-	await transporter.sendMail({
-		from: config.email_sender,
-		to: payload.user.email,
-		subject: "Doctor Application - Email Verification",
-		html,
-	});
-
-	return doctorApplication;
+    return doctorApplication;
 };
 
 const verifyDoctorEmail = async (payload : IVerifyDoctorEmailPayload) => {
