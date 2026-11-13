@@ -291,25 +291,23 @@ const loginUser = async (payload: ILoginUserPayload) => {
 };
 
 const getMe = async (user: IRequestUser) => {
-	const isUserExists = await prisma.user.findUnique({
-		where: {
-			id: user.userId,
-		},
-		include: {
-			patient: true,
-			doctor: true,
-			admin: true,
-		},
-		omit: {
-			password: true,
-		},
-	});
+    const isUserExists = await prisma.user.findUnique({
+        where: {
+            id: user.userId,
+        },
+        include: {
+            patient: true,
+            doctor: true,
+            admin: true,
+        },
+    });
 
-	if (!isUserExists) {
-		throw new Error("User not found");
-	}
+    if (!isUserExists) {
+        throw new Error("User not found");
+    }
 
-	return isUserExists;
+    const { password, ...userWithoutPassword } = isUserExists;
+    return userWithoutPassword;
 };
 
 const refreshToken = async (token: string) => {
