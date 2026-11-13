@@ -6,8 +6,8 @@ import { prisma } from "./app/lib/prisma.js";
 import { redisClient } from "./app/lib/redis.js";
 import {
 	seedSuperAdmin,
-	seedTesterAdmin,
-	seedTesterDoctor,
+	seedAdmin,
+	seedModerator,
 } from "./app/utils/seed.js";
 
 const PORT = config.port;
@@ -32,8 +32,8 @@ const main = async () => {
 		}
 
 		await seedSuperAdmin();
-		await seedTesterAdmin();
-		await seedTesterDoctor();
+		await seedAdmin();
+		await seedModerator();
 
 		await deleteUnverifiedDoctors();
 

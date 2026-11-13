@@ -1,6 +1,5 @@
 import bcrypt from "bcryptjs";
 import {
-  DoctorVerificationStatus,
   Role,
   UserStatus,
 } from "../../generated/prisma/enums.js";
@@ -61,15 +60,15 @@ export const seedSuperAdmin = async () => {
   }
 };
 
-// Create / Sync Tester Admin
-export const seedTesterAdmin = async () => {
+// Create / Sync Admin
+export const seedAdmin = async () => {
   try {
-    const name = config.tester_admin_name;
-    const email = config.tester_admin_email?.trim().toLowerCase();
-    const password = config.tester_admin_password; // Fixed: tester_admin_password
+    const name = config.admin_name;
+    const email = config.admin_email?.trim().toLowerCase();
+    const password = config.admin_password;
 
     if (!name || !email || !password) {
-      throw new Error("Tester Admin Name, Email, or Password Missing In Env File!");
+      throw new Error("Admin Name, Email, or Password Missing In Env File!");
     }
 
     const hashedPassword = await bcrypt.hash(
@@ -94,7 +93,7 @@ export const seedTesterAdmin = async () => {
           isDeleted: false,
         },
       });
-      console.log("Tester Admin Synced Successfully!");
+      console.log("Admin Synced Successfully!");
       return;
     }
 
@@ -110,21 +109,21 @@ export const seedTesterAdmin = async () => {
       },
     });
 
-    console.log("Tester Admin Created:", testerAdmin.email);
+    console.log("Admin Created:", testerAdmin.email);
   } catch (error) {
-    console.error("Error Seeding Tester Admin:", error);
+    console.error("Error Seeding Admin:", error);
   }
 };
 
-// Create / Sync Tester Doctor (with APPROVED Doctor profile)
-export const seedTesterDoctor = async () => {
+// Create / Sync Moderator. Moderators use the existing ADMIN role.
+export const seedModerator = async () => {
   try {
-    const name = config.tester_doctor_name;
-    const email = config.tester_doctor_email?.trim().toLowerCase();
-    const password = config.tester_doctor_password; // Fixed: tester_doctor_password
+    const name = config.moderator_name;
+    const email = config.moderator_email?.trim().toLowerCase();
+    const password = config.moderator_password;
 
     if (!name || !email || !password) {
-      throw new Error("Tester Doctor Name, Email, or Password Missing In Env File!");
+      throw new Error("Moderator Name, Email, or Password Missing In Env File!");
     }
 
     const hashedPassword = await bcrypt.hash(
@@ -132,74 +131,41 @@ export const seedTesterDoctor = async () => {
       Number(config.bcrypt_salt_rounds),
     );
 
-    const existingDoctorUser = await prisma.user.findUnique({
+    const existingModerator = await prisma.user.findUnique({
       where: { email },
-      include: { doctor: true },
     });
 
-    if (existingDoctorUser) {
+    if (existingModerator) {
       await prisma.user.update({
-        where: { id: existingDoctorUser.id },
+        where: { id: existingModerator.id },
         data: {
           name,
           password: hashedPassword,
-          role: Role.DOCTOR,
+          role: Role.ADMIN,
           status: UserStatus.ACTIVE,
           needPasswordChange: false,
           emailVerified: true,
           isDeleted: false,
-          doctor: existingDoctorUser.doctor
-            ? {
-                update: {
-                  verificationStatus: DoctorVerificationStatus.APPROVED,
-                },
-              }
-            : {
-                create: {
-                  name,
-                  email,
-                  contactNumber: "01700000000",
-                  specialization: "Internal Medicine",
-                  licenseNumber: "BMDC-TEST-001",
-                  qualifications: "MBBS, FCPS",
-                  experienceYears: 10,
-                  consultationFee: 500,
-                  verificationStatus: DoctorVerificationStatus.APPROVED,
-                },
-              },
         },
       });
-      console.log("Tester Doctor Synced Successfully!");
+      console.log("Moderator Synced Successfully!");
       return;
     }
 
-    const testerDoctor = await prisma.user.create({
+    const moderator = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
-        role: Role.DOCTOR,
+        role: Role.ADMIN,
         status: UserStatus.ACTIVE,
         needPasswordChange: false,
         emailVerified: true,
-        doctor: {
-          create: {
-            name,
-            email,
-            contactNumber: "01700000000",
-            specialization: "Internal Medicine",
-            licenseNumber: "BMDC-TEST-001",
-            qualifications: "MBBS, FCPS",
-            experienceYears: 10,
-            consultationFee: 500,
-            verificationStatus: DoctorVerificationStatus.APPROVED,
-          },
-        },
       },
     });
 
-    console.log("Tester Doctor Created:", testerDoctor.email);
+    console.log("Moderator Created:", moderator.email);
   } catch (error) {
-    console.error("Error Seeding Tester Doctor:", error);
+    console.error("Error Seeding Moderator:", error);
   }
 };
