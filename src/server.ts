@@ -5,7 +5,6 @@ import { transporter } from "./app/lib/nodemailer.js";
 import { prisma } from "./app/lib/prisma.js";
 import { redisClient } from "./app/lib/redis.js";
 import {
-	seedSuperAdmin,
 	seedAdmin,
 	seedModerator,
 } from "./app/utils/seed.js";
@@ -31,7 +30,6 @@ const main = async () => {
 			console.warn("Nodemailer unavailable; email features are disabled.", error);
 		}
 
-		await seedSuperAdmin();
 		await seedAdmin();
 		await seedModerator();
 

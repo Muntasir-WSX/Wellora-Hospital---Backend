@@ -124,7 +124,7 @@ The complete configuration is mapped in `src/app/config/index.ts`.
 | SMTP | `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_SENDER` |
 | Cloudinary | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` |
 | bKash | `BKASH_BASE_URL`, `BKASH_USERNAME`, `BKASH_PASSWORD`, `BKASH_APP_KEY`, `BKASH_APP_SECRET`, `BKASH_CALLBACK_URL` |
-| Seed accounts | `SUPER_ADMIN_*`, `ADMIN_*`, `MODERATOR_*` |
+| Seed accounts | `ADMIN_*`, `MODERATOR_*` |
 
 Do not commit `.env` files or credentials.
 
