@@ -298,7 +298,6 @@ const getMe = async (user: IRequestUser) => {
         include: {
             patient: true,
             doctor: true,
-            admin: true,
         },
     });
 
