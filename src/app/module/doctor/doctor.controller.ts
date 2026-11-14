@@ -9,57 +9,36 @@ import {
 } from "./doctor.validation.js";
 
 const applyAsDoctor = catchAsync(async (req: Request, res: Response) => {
-	const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-	const resume = files?.["resume"] ? files["resume"][0] : null;
-	const additionalFiles = files?.["additionalFiles"] || [];
+  const files = req.files as {
+    [fieldname: string]: Express.Multer.File[];
+  } | undefined;
 
-	if (!resume) {
-		throw new AppError(
-			httpStatus.BAD_REQUEST,
-			"Resume file is required for doctor application",
-		);
-	}
+  const resume = files?.resume?.[0];
+  const additionalFiles = files?.additionalFiles || [];
+  const profilePhoto = files?.profilePhoto?.[0];
 
-	const rawData = req.body?.data;
+  if (!resume) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Resume file is required");
+  }
 
-	if (typeof rawData !== "string") {
-		throw new AppError(
-			httpStatus.BAD_REQUEST,
-			"Doctor application data is required",
-		);
-	}
+  const parsedBody =
+    typeof req.body.data === "string" ? JSON.parse(req.body.data) : req.body;
 
-	let parsedData: unknown;
-	try {
-		parsedData = JSON.parse(rawData);
-	} catch {
-		throw new AppError(
-			httpStatus.BAD_REQUEST,
-			"Doctor application data must be valid JSON",
-		);
-	}
+  const validatedData = ApplyAsDoctorValidationZodSchema.parse(parsedBody);
 
-	const zodValidationResult = ApplyAsDoctorValidationZodSchema.safeParse(
-		parsedData,
-	);
+  const result = await DoctorServices.applyAsDoctor(
+    validatedData,
+    resume,
+    additionalFiles,
+    profilePhoto,
+  );
 
-	if (!zodValidationResult.success) {
-		throw new AppError(httpStatus.BAD_REQUEST, zodValidationResult.error.issues[0].message);
-	}
-
-	const payload = zodValidationResult.data;
-
-	const result = await DoctorServices.applyAsDoctor(
-		payload,
-		resume,
-		additionalFiles,
-	);
-	sendResponse(res, {
-		statusCode: httpStatus.OK,
-		success: true,
-		message: "Applied As Doctor Successfuly",
-		data: result,
-	});
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: "Doctor application submitted. Please verify your email via OTP.",
+    data: result,
+  });
 });
 const verifyDoctorEmail = catchAsync(async (req: Request, res: Response) => {
     const payload = req.body;

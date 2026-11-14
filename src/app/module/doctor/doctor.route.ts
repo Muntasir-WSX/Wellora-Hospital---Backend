@@ -21,6 +21,7 @@ router.post(
 			name: "additionalFiles",
 			maxCount: 10,
 		},
+		{ name: "profilePhoto", maxCount: 1 }
 	]),
 	DoctorController.applyAsDoctor,
 );
