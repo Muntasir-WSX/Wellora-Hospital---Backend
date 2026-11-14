@@ -3,6 +3,7 @@ import httpStatus from "http-status";
 import { catchAsync } from "../../utils/catchAsync.js";
 import { sendResponse } from "../../utils/sendResponse.js";
 import { AppointmentServices } from "./appointmentService.js";
+import type { IQuery } from "../../interfaces/index.js";
 
 const bookAppointment = catchAsync(async (req: Request, res: Response) => {
 	const payload = req.body;
@@ -83,7 +84,7 @@ const getMyAppointments = catchAsync(async (req: Request, res: Response) => {
 	const user = req.user!;
 
 	const { data, meta } = await AppointmentServices.getMyAppointments(
-		req.query,
+		req.query as IQuery,
 		user,
 	);
 	sendResponse(res, {
@@ -100,7 +101,7 @@ const getDoctorAppointments = catchAsync(
 		const user = req.user!;
 
 		const { data, meta } = await AppointmentServices.getDoctorAppointments(
-			req.query,
+			req.query as IQuery,
 			user,
 		);
 		sendResponse(res, {
@@ -115,7 +116,7 @@ const getDoctorAppointments = catchAsync(
 
 const getAllAppointments = catchAsync(async (req: Request, res: Response) => {
 	const { data, meta } = await AppointmentServices.getAllAppointments(
-		req.query,
+		req.query as IQuery,
 	);
 	sendResponse(res, {
 		statusCode: httpStatus.OK,

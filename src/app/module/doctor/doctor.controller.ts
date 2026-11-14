@@ -4,6 +4,7 @@ import { AppError } from "../../utils/AppError.js";
 import { catchAsync } from "../../utils/catchAsync.js";
 import { sendResponse } from "../../utils/sendResponse.js";
 import { DoctorServices } from "./doctor.service.js";
+import type { IQuery } from "../../interfaces/index.js";
 import {
 	ApplyAsDoctorValidationZodSchema,
 } from "./doctor.validation.js";
@@ -68,7 +69,7 @@ const approveDoctor = catchAsync(async (req: Request, res: Response) => {
 const getAllDoctors = catchAsync(async (req: Request, res: Response) => {
 	
 
-	const {data, meta} = await DoctorServices.getAllDoctors(req.query)
+	const {data, meta} = await DoctorServices.getAllDoctors(req.query as IQuery)
 	sendResponse(res, {
 		statusCode: httpStatus.OK,
 		success: true,
@@ -99,7 +100,7 @@ const getAvailableDoctorByTodaysSchedule = catchAsync(
 	
 
 		const { data, meta } = await DoctorServices.getAvailableDoctorByTodaysSchedule(
-			req.query
+			req.query as IQuery
 		);
 		sendResponse(res, {
 			statusCode: httpStatus.OK,
@@ -115,7 +116,7 @@ const getAllDoctorsListPublic = catchAsync(async (req: Request, res: Response) =
 
 
 	const { data, meta } = await DoctorServices.getAllDoctorsListPublic(
-		req.query
+		req.query as IQuery
 	);
 	sendResponse(res, {
 		statusCode: httpStatus.OK,

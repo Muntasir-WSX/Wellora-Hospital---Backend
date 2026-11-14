@@ -3,11 +3,12 @@ import httpStatus from "http-status";
 import { catchAsync } from "../../utils/catchAsync.js";
 import { sendResponse } from "../../utils/sendResponse.js";
 import { PaymentServices } from "./payment.service.js";
+import type { IQuery } from "../../interfaces/index.js";
 
 const getMyPayments = catchAsync(async (req: Request, res: Response) => {
     const user = req.user!;
 
-    const { data, meta } = await PaymentServices.getMyPayments(req.query, user);
+    const { data, meta } = await PaymentServices.getMyPayments(req.query as IQuery, user);
     sendResponse(res, {
         statusCode: httpStatus.OK,
         success: true,
@@ -18,7 +19,7 @@ const getMyPayments = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAllPayments = catchAsync(async (req: Request, res: Response) => {
-    const { data, meta } = await PaymentServices.getAllPayments(req.query);
+    const { data, meta } = await PaymentServices.getAllPayments(req.query as IQuery);
     sendResponse(res, {
         statusCode: httpStatus.OK,
         success: true,

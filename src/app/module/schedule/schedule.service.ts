@@ -8,6 +8,18 @@ import { RequestUser } from "../../middleware/checkAuth.js";
 import { AppError } from "../../utils/AppError.js";
 import { ICreateSchedulePayload, IUpdateSchedulePayload } from "./schedule.interface.js";
 
+const getScheduleStatus = (status: string | undefined) => {
+    if (!status) {
+        return undefined;
+    }
+
+    if (!Object.values(ScheduleStatus).includes(status as ScheduleStatus)) {
+        throw new AppError(httpStatus.BAD_REQUEST, "Invalid schedule status");
+    }
+
+    return status as ScheduleStatus;
+};
+
 
 const createSchedule = async (payload : ICreateSchedulePayload , user : RequestUser) => {
 
@@ -134,8 +146,9 @@ const getMySchedules = async (query : IQuery, user : RequestUser) => {
         }
     ];
 
-    if (query.status) {
-        andConditions.push({ status: query.status });
+    const status = getScheduleStatus(query.status);
+    if (status) {
+        andConditions.push({ status });
     }
 
     const schedules = await prisma.schedule.findMany({
@@ -191,8 +204,9 @@ const getAllSchedules = async (query : IQuery) => {
         } });
     }
 
-    if (query.status) {
-        andConditions.push({ status: query.status });
+    const status = getScheduleStatus(query.status);
+    if (status) {
+        andConditions.push({ status });
     }
 
     if (query.searchTerm) {

@@ -10,5 +10,10 @@ export interface IQuery {
   licenseNumber?: string;
   verificationStatus?: string;
   qualifications?: string;
+  status?: string;
+  doctorId?: string;
+  patientId?: string;
+  doctorEmail?: string;
+  patientEmail?: string;
   [key: string]: string | undefined;
 }

@@ -184,7 +184,9 @@ export const seedDepartments = async () => {
     for (const dept of COMMON_DEPARTMENTS) {
       await prisma.department.upsert({
         where: { name: dept.name },
-        update: { isDeleted: false },
+        update: {
+          description: dept.description,
+        },
         create: {
           name: dept.name,
           description: dept.description,

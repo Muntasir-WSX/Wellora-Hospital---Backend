@@ -60,7 +60,7 @@ const applyAsDoctor = async (
     },
   });
 
-  if (!departmentExists || departmentExists.isDeleted) {
+  if (!departmentExists) {
     throw new AppError(httpStatus.BAD_REQUEST, "Selected department does not exist");
   }
 

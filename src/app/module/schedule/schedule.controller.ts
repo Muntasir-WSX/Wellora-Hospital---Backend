@@ -4,6 +4,7 @@ import httpStatus from "http-status";
 import { catchAsync } from "../../utils/catchAsync.js";
 import { sendResponse } from "../../utils/sendResponse.js";
 import { ScheduleServices } from "./schedule.service.js";
+import type { IQuery } from "../../interfaces/index.js";
 
 const createSchedule = catchAsync(async (req: Request, res: Response) => {
     const payload = req.body;
@@ -21,7 +22,7 @@ const createSchedule = catchAsync(async (req: Request, res: Response) => {
 const getMySchedules = catchAsync(async (req: Request, res: Response) => {
     const user = req.user!;
 
-    const { data, meta } = await ScheduleServices.getMySchedules(req.query, user);
+    const { data, meta } = await ScheduleServices.getMySchedules(req.query as IQuery, user);
     sendResponse(res, {
         statusCode: httpStatus.OK,
         success: true,
@@ -32,7 +33,7 @@ const getMySchedules = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAllSchedules = catchAsync(async (req: Request, res: Response) => {
-    const { data, meta } = await ScheduleServices.getAllSchedules(req.query);
+    const { data, meta } = await ScheduleServices.getAllSchedules(req.query as IQuery);
     sendResponse(res, {
         statusCode: httpStatus.OK,
         success: true,
@@ -43,7 +44,7 @@ const getAllSchedules = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getTodaysSchedules = catchAsync(async (req: Request, res: Response) => {
-    const { data, meta } = await ScheduleServices.getTodaysSchedules(req.query);
+    const { data, meta } = await ScheduleServices.getTodaysSchedules(req.query as IQuery);
     sendResponse(res, {
         statusCode: httpStatus.OK,
         success: true,

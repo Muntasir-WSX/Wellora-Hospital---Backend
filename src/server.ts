@@ -6,6 +6,7 @@ import { prisma } from "./app/lib/prisma.js";
 import { redisClient } from "./app/lib/redis.js";
 import {
 	seedAdmin,
+	seedDepartments,
 	seedModerator,
 } from "./app/utils/seed.js";
 
@@ -32,6 +33,7 @@ const main = async () => {
 
 		await seedAdmin();
 		await seedModerator();
+		await seedDepartments();
 
 		await deleteUnverifiedDoctors();
 

@@ -22,6 +22,18 @@ import {
 	IUpdateAppointmentStatusPayload,
 } from "./appoitment.interface.js";
 
+const getAppointmentStatus = (status: string | undefined) => {
+	if (!status) {
+		return undefined;
+	}
+
+	if (!Object.values(AppointmentStatus).includes(status as AppointmentStatus)) {
+		throw new AppError(httpStatus.BAD_REQUEST, "Invalid appointment status");
+	}
+
+	return status as AppointmentStatus;
+};
+
 const bookAppointment = async (
 	payload: IBookAppointmentPayload,
 	user: RequestUser,
@@ -777,8 +789,9 @@ const getMyAppointments = async (query: IQuery, user: RequestUser) => {
 		},
 	];
 
-	if (query.status) {
-		andConditions.push({ status: query.status });
+	const status = getAppointmentStatus(query.status);
+	if (status) {
+		andConditions.push({ status });
 	}
 
 	const appointments = await prisma.appointment.findMany({
@@ -830,8 +843,9 @@ const getDoctorAppointments = async (query: IQuery, user: RequestUser) => {
 		},
 	];
 
-	if (query.status) {
-		andConditions.push({ status: query.status });
+	const status = getAppointmentStatus(query.status);
+	if (status) {
+		andConditions.push({ status });
 	}
 
 	const appointments = await prisma.appointment.findMany({
@@ -873,8 +887,9 @@ const getAllAppointments = async (query: IQuery) => {
 
 	const andConditions: AppointmentWhereInput[] = [];
 
-	if (query.status) {
-		andConditions.push({ status: query.status });
+	const status = getAppointmentStatus(query.status);
+	if (status) {
+		andConditions.push({ status });
 	}
 
 	if (query.doctorId) {
