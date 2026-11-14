@@ -114,3 +114,85 @@ export const seedModerator = async () => {
     console.error("Error Seeding Moderator:", error);
   }
 };
+
+
+export const COMMON_DEPARTMENTS = [
+  {
+    name: "Cardiology",
+    description: "Comprehensive heart, cardiovascular, and hypertension care.",
+  },
+  {
+    name: "Neurology",
+    description: "Diagnosis and treatment of brain, spinal cord, and nervous system disorders.",
+  },
+  {
+    name: "Orthopaedics & Joint Replacement Surgery",
+    description: "Bone, joint, spine, sports injury, and joint replacement care.",
+  },
+  {
+    name: "Obstetrics and Gynaecology",
+    description: "Women's reproductive health, pregnancy, and maternity care.",
+  },
+  {
+    name: "Paediatrics",
+    description: "Complete medical care for infants, children, and adolescents.",
+  },
+  {
+    name: "Dermatology & Venereology",
+    description: "Skin, hair, nail, allergy, and cosmetic dermatology treatments.",
+  },
+  {
+    name: "Gastroenterology & Hepatology",
+    description: "Digestive tract, stomach, liver, and pancreatic disorder management.",
+  },
+  {
+    name: "ENT & Head Neck Surgery",
+    description: "Ear, nose, throat, sinus, and head-neck surgical care.",
+  },
+  {
+    name: "Ophthalmology",
+    description: "Comprehensive eye care, vision testing, and cataract surgery.",
+  },
+  {
+    name: "Endocrinology & Diabetology",
+    description: "Diabetes, thyroid, hormone, and metabolic disorder care.",
+  },
+  {
+    name: "Internal Medicine",
+    description: "Adult primary care and complex multi-system disease management.",
+  },
+  {
+    name: "General & Laparoscopic Surgery",
+    description: "Minimally invasive laparoscopic and general surgical procedures.",
+  },
+  {
+    name: "Nephrology",
+    description: "Kidney disease, dialysis, and renal health management.",
+  },
+  {
+    name: "Respiratory Medicine",
+    description: "Asthma, COPD, lung infection, and pulmonary care.",
+  },
+  {
+    name: "Psychiatry & Mental Health",
+    description: "Mental wellness, anxiety, depression, and behavioral therapy.",
+  },
+];
+
+export const seedDepartments = async () => {
+  try {
+    for (const dept of COMMON_DEPARTMENTS) {
+      await prisma.department.upsert({
+        where: { name: dept.name },
+        update: { isDeleted: false },
+        create: {
+          name: dept.name,
+          description: dept.description,
+        },
+      });
+    }
+    console.log("15 Common Departments Synced Successfully!");
+  } catch (error) {
+    console.error("Error Seeding Departments:", error);
+  }
+};
