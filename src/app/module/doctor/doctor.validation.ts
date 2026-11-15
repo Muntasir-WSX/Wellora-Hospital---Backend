@@ -73,3 +73,9 @@ export const UpdateDoctorProfileValidationZodSchema = z.object({
     .min(5, "Contact number is invalid")
     .optional(),
 });
+
+export const ApproveDoctorValidationZodSchema = z.object({
+  doctorId: z.uuid("Invalid Doctor ID"),
+  verificationStatus: z.enum(["APPROVED", "REJECTED"]),
+  rejectionReason: z.string().trim().min(5, "Rejection reason must be at least 5 characters").optional(),
+});
