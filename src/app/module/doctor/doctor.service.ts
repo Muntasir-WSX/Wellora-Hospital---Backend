@@ -90,14 +90,19 @@ const applyAsDoctor = async (
     }
   }
 
-  // 5. Upload Resume to Cloudinary safely
-  let resumeUploadResult: UploadApiResponse;
-  try {
-    resumeUploadResult = await new Promise<UploadApiResponse>((resolve, reject) => {
+ // Helper function to upload PDF or Image cleanly to Cloudinary
+  const uploadToCloudinary = (
+    file: Express.Multer.File,
+    folder: string,
+  ): Promise<UploadApiResponse> => {
+    const isPdf = file.mimetype === "application/pdf";
+
+    return new Promise<UploadApiResponse>((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         {
-          resource_type: "auto",
-          folder: "wellora/doctors/resumes",
+          resource_type: isPdf ? "image" : "auto", // অবশ্যই lowercase "image"
+          folder,
+          ...(isPdf && { format: "pdf" }),
         },
         (error, result) => {
           if (error) return reject(error);
@@ -105,8 +110,17 @@ const applyAsDoctor = async (
           resolve(result);
         },
       );
-      stream.end(resume.buffer);
+      stream.end(file.buffer);
     });
+  };
+
+  // 5. Upload Resume to Cloudinary safely
+  let resumeUploadResult: UploadApiResponse;
+  try {
+    resumeUploadResult = await uploadToCloudinary(
+      resume,
+      "wellora/doctors/resumes",
+    );
   } catch (err: any) {
     throw new AppError(
       httpStatus.BAD_GATEWAY,
@@ -119,22 +133,9 @@ const applyAsDoctor = async (
   if (additionalFiles && additionalFiles.length > 0) {
     try {
       additionalFilesUploadResults = await Promise.all(
-        additionalFiles.map((file) => {
-          return new Promise<UploadApiResponse>((resolve, reject) => {
-            const stream = cloudinary.uploader.upload_stream(
-              {
-                resource_type: "auto",
-                folder: "wellora/doctors/certificates",
-              },
-              (error, result) => {
-                if (error) return reject(error);
-                if (!result) return reject(new Error("No result returned from Cloudinary"));
-                resolve(result);
-              },
-            );
-            stream.end(file.buffer);
-          });
-        }),
+        additionalFiles.map((file) =>
+          uploadToCloudinary(file, "wellora/doctors/certificates"),
+        ),
       );
     } catch (err: any) {
       throw new AppError(
