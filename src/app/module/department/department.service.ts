@@ -1,6 +1,14 @@
 import httpStatus from "http-status";
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../utils/AppError.js";
+import { toSlug } from "../../utils/slug.js";
+
+const generateSlug = (name: string) =>
+  name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
 const getDepartments = () =>
 	prisma.department.findMany({
@@ -12,7 +20,7 @@ const createDepartment = (data: {
 	name: string;
 	description?: string;
 	imageUrl?: string;
-}) => prisma.department.create({ data });
+}) => prisma.department.create({ data: { ...data, slug: generateSlug(data.name) } });
 
 const updateDepartment = async (
 	id: string,
@@ -21,7 +29,13 @@ const updateDepartment = async (
 	const department = await prisma.department.findUnique({ where: { id } });
 	if (!department)
 		throw new AppError(httpStatus.NOT_FOUND, "Department Not Found");
-	return prisma.department.update({ where: { id }, data });
+	return prisma.department.update({
+		where: { id },
+		data: {
+			...data,
+			...(data.name ? { slug: generateSlug(data.name) } : {}),
+		},
+	});
 };
 
 const deleteDepartment = async (id: string) => {
