@@ -235,6 +235,17 @@ const getAllSchedules = async (query : IQuery) => {
             [sortBy]: sortOrder
         },
         include: {
+
+            doctor: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    specialization: true,
+                    userId: true   ,
+                    profilePhoto: true  
+                }
+            },
             appointments: {
                 include: {
                     patient: true
