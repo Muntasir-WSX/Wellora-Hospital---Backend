@@ -100,7 +100,7 @@ const applyAsDoctor = async (
     return new Promise<UploadApiResponse>((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         {
-          resource_type: isPdf ? "image" : "auto", // অবশ্যই lowercase "image"
+          resource_type: isPdf ? "raw" : "auto",
           folder,
           ...(isPdf && { format: "pdf" }),
         },
