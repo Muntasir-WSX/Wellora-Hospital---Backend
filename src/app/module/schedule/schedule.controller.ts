@@ -33,7 +33,10 @@ const getMySchedules = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAllSchedules = catchAsync(async (req: Request, res: Response) => {
-    const { data, meta } = await ScheduleServices.getAllSchedules(req.query as IQuery);
+    const { data, meta } = await ScheduleServices.getAllSchedules(
+        req.query as IQuery,
+    );
+
     sendResponse(res, {
         statusCode: httpStatus.OK,
         success: true,
