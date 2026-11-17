@@ -72,11 +72,7 @@ const getAllPayments = async (query: IQuery) => {
 
     if(query.patientEmail) {
         andConditions.push({
-            appointment : {
-                patient : {
-                    email: query.patientEmail,
-                }
-            }
+          status: query.status as any,
         })
     }
 
@@ -89,6 +85,7 @@ const getAllPayments = async (query: IQuery) => {
             appointment: {
                 include: {
                     doctor: { select: { id: true, name: true, specialization: true } },
+                    patient: { select: { id: true, name: true, email: true, userId: true } },
                     schedule: true,
                 },
             },
