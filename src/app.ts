@@ -23,6 +23,7 @@ import { PrescriptionRoutes } from "./app/module/prescription/prescription.route
 import { ScheduleRoutes } from "./app/module/schedule/schedule.route.js";
 import { ReviewRoutes } from "./app/module/review/review.route.js";
 import { UserRoutes } from "./app/module/user/user.route.js";
+import { PublicRoutes } from "./app/module/public/public.route.js";
 
 const app: Application = express();
 
@@ -50,6 +51,7 @@ app.use("/api/v1/payment", PaymentRoutes);
 app.use("/api/v1/prescription", PrescriptionRoutes);
 app.use("/api/v1/analytics", AnalyticsRoutes);
 app.use("/api/v1/review", ReviewRoutes);
+app.use("/api/v1/public", PublicRoutes);
 
 app.get(
 	"/test",

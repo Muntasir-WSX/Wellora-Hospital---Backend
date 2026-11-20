@@ -17,6 +17,7 @@ model User {
   updatedAt          DateTime     @updatedAt
   patient            Patient?
   doctor             Doctor?
+  blogs              Blog[]
 
   @@map("users")
 }
