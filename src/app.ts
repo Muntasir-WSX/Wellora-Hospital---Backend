@@ -52,6 +52,7 @@ app.use("/api/v1/prescription", PrescriptionRoutes);
 app.use("/api/v1/analytics", AnalyticsRoutes);
 app.use("/api/v1/review", ReviewRoutes);
 app.use("/api/v1/public", PublicRoutes);
+app.use("/api/v1", PublicRoutes);
 
 app.get(
 	"/test",
