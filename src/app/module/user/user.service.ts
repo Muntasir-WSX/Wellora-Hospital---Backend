@@ -1,6 +1,7 @@
 import type { UploadApiResponse } from "cloudinary";
 import httpStatus from "http-status";
 import { Role } from "../../../generated/prisma/enums.js";
+import type { IQuery } from "../../interfaces/index.js";
 import { cloudinary } from "../../lib/cloudinary.js";
 import { prisma } from "../../lib/prisma.js";
 import type { RequestUser } from "../../middleware/checkAuth.js";
@@ -24,8 +25,6 @@ type UpdateMyProfilePayload = {
 	qualifications?: string;
 	experienceYears?: number;
 	consultationFee?: number;
-	currentWorkingPlace?: string;
-	designation?: string;
 	bio?: string;
 };
 
@@ -77,7 +76,6 @@ const updateMyProfile = async (
 						contactNumber: payload.contactNumber,
 					}),
 					...(payload.address !== undefined && { address: payload.address }),
-					...(payload.gender !== undefined && { gender: payload.gender }),
 					...(payload.qualifications !== undefined && {
 						qualifications: payload.qualifications,
 					}),
@@ -178,8 +176,159 @@ const uploadProfileImage = async (buffer: Buffer, userId: string) => {
 	return updatedUser;
 };
 
+const getAllUsers = async (query: IQuery) => {
+	const parsedLimit = query.limit ? Number(query.limit) : 12;
+	const parsedPage = query.page ? Number(query.page) : 1;
+	const limit =
+		Number.isFinite(parsedLimit) && parsedLimit > 0
+			? Math.min(parsedLimit, 100)
+			: 12;
+	const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+	const skip = (page - 1) * limit;
+
+	const where: Record<string, unknown> = {};
+	where.isDeleted = false;
+
+	if (
+		query.role &&
+		query.role !== "ALL" &&
+		["SUPER_ADMIN", "ADMIN", "DOCTOR", "PATIENT"].includes(query.role)
+	) {
+		where.role = query.role;
+	}
+
+	if (query.status && ["ACTIVE", "BLOCKED", "DELETED"].includes(query.status)) {
+		where.status = query.status;
+	}
+
+	if (query.searchTerm) {
+		where.OR = [
+			{ name: { contains: query.searchTerm, mode: "insensitive" } },
+			{ email: { contains: query.searchTerm, mode: "insensitive" } },
+		];
+	}
+
+	const [data, total] = await Promise.all([
+		prisma.user.findMany({
+			where,
+			take: limit,
+			skip,
+			orderBy: { createdAt: "desc" },
+			omit: { password: true },
+			include: {
+				doctor: {
+					select: {
+						id: true,
+						specialization: true,
+						verificationStatus: true,
+						department: { select: { name: true } },
+					},
+				},
+				patient: {
+					select: { id: true, contactNumber: true },
+				},
+			},
+		}),
+		prisma.user.count({ where }),
+	]);
+
+	return {
+		data,
+		meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+	};
+};
+
+const toggleBanUser = async (
+	adminUser: RequestUser,
+	targetUserId: string,
+	payload?: { isBanned?: boolean; status?: "ACTIVE" | "BLOCKED" },
+) => {
+	if (adminUser.userId === targetUserId) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"You cannot ban or unban your own account",
+		);
+	}
+
+	const targetUser = await prisma.user.findUnique({
+		where: { id: targetUserId },
+	});
+
+	if (!targetUser) {
+		throw new AppError(httpStatus.NOT_FOUND, "User not found");
+	}
+
+	if (
+		targetUser.role === Role.SUPER_ADMIN &&
+		adminUser.role !== Role.SUPER_ADMIN
+	) {
+		throw new AppError(
+			httpStatus.FORBIDDEN,
+			"You cannot modify a Super Admin account",
+		);
+	}
+
+	const currentStatus = (targetUser as { status?: string }).status;
+	const nextStatus =
+		payload?.status ??
+		(payload?.isBanned !== undefined
+			? payload.isBanned
+				? "BLOCKED"
+				: "ACTIVE"
+			: currentStatus === "BLOCKED"
+				? "ACTIVE"
+				: "BLOCKED");
+
+	return prisma.user.update({
+		where: { id: targetUserId },
+		data: { status: nextStatus as never },
+		omit: { password: true },
+	});
+};
+
+// Admin: Permanently Delete User
+const deleteUser = async (adminUser: RequestUser, targetUserId: string) => {
+	if (adminUser.userId === targetUserId) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"You cannot delete your own account",
+		);
+	}
+
+	const targetUser = await prisma.user.findUnique({
+		where: { id: targetUserId },
+	});
+
+	if (!targetUser) {
+		throw new AppError(httpStatus.NOT_FOUND, "User not found");
+	}
+
+	if (
+		targetUser.role === Role.SUPER_ADMIN &&
+		adminUser.role !== Role.SUPER_ADMIN
+	) {
+		throw new AppError(
+			httpStatus.FORBIDDEN,
+			"You cannot delete a Super Admin account",
+		);
+	}
+
+	if (targetUser.imagePublicId) {
+		await cloudinary.uploader.destroy(targetUser.imagePublicId).catch(() => {});
+	}
+
+	await prisma.user.delete({
+		where: { id: targetUserId },
+	});
+
+	return null;
+};
+
 export const UserServices = {
 	getMyProfile,
 	updateMyProfile,
 	uploadProfileImage,
+	getAllUsers,
+	toggleBanUser,
+	deleteUser,
 };

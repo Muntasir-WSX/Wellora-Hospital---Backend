@@ -5,7 +5,10 @@ export const UpdateMyProfileValidationZodSchema = z.object({
 	contactNumber: z.string().trim().min(6).max(20).optional(),
 	address: z.string().trim().max(255).optional(),
 	gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
-	dateOfBirth: z.string().optional(),
+	dateOfBirth: z.iso
+		.datetime({ offset: true })
+		.optional()
+		.or(z.string().date().optional()),
 	bloodGroup: z
 		.enum([
 			"A_POSITIVE",
@@ -22,4 +25,9 @@ export const UpdateMyProfileValidationZodSchema = z.object({
 	experienceYears: z.coerce.number().min(0).optional(),
 	consultationFee: z.coerce.number().min(0).optional(),
 	bio: z.string().trim().max(1000).optional(),
+});
+
+export const UpdateUserStatusZodSchema = z.object({
+	isBanned: z.boolean().optional(),
+	status: z.enum(["ACTIVE", "BLOCKED"]).optional(),
 });

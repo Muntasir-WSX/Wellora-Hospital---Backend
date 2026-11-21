@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import httpStatus from "http-status";
+import type { IQuery } from "../../interfaces/index.js";
 import { AppError } from "../../utils/AppError.js";
 import { catchAsync } from "../../utils/catchAsync.js";
 import { sendResponse } from "../../utils/sendResponse.js";
@@ -21,8 +22,19 @@ const uploadProfileImage = catchAsync(async (req: Request, res: Response) => {
 	sendResponse(res, {
 		statusCode: httpStatus.OK,
 		success: true,
-		message: "New tokens generated successfully",
+		message: "Profile image uploaded successfully",
 		data: result,
+	});
+});
+
+const getAllUsers = catchAsync(async (req: Request, res: Response) => {
+	const { data, meta } = await UserServices.getAllUsers(req.query as IQuery);
+	sendResponse(res, {
+		statusCode: httpStatus.OK,
+		success: true,
+		message: "Users retrieved successfully",
+		data,
+		meta,
 	});
 });
 
@@ -54,8 +66,46 @@ const updateMyProfile = catchAsync(async (req: Request, res: Response) => {
 	});
 });
 
+const toggleBanUser = catchAsync(async (req: Request, res: Response) => {
+	if (!req.user) {
+		throw new AppError(httpStatus.UNAUTHORIZED, "You are not logged in.");
+	}
+
+	const result = await UserServices.toggleBanUser(
+		req.user,
+		req.params.id as string,
+		req.body,
+	);
+
+	sendResponse(res, {
+		statusCode: httpStatus.OK,
+		success: true,
+		message: "User status updated successfully",
+		data: result,
+	});
+});
+
+// Admin: Delete User
+const deleteUser = catchAsync(async (req: Request, res: Response) => {
+	if (!req.user) {
+		throw new AppError(httpStatus.UNAUTHORIZED, "You are not logged in.");
+	}
+
+	await UserServices.deleteUser(req.user, req.params.id as string);
+
+	sendResponse(res, {
+		statusCode: httpStatus.OK,
+		success: true,
+		message: "User deleted successfully",
+		data: null,
+	});
+});
+
 export const UserController = {
 	uploadProfileImage,
 	getMyProfile,
 	updateMyProfile,
+	getAllUsers,
+	toggleBanUser,
+	deleteUser,
 };
