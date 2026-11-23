@@ -2,6 +2,7 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import ejs from "ejs";
+import httpStatus from "http-status";
 import type { TokenPayload } from "google-auth-library";
 import type { JwtPayload, SignOptions } from "jsonwebtoken";
 import path from "path";
@@ -16,6 +17,7 @@ import { googleClient } from "../../lib/googleAuth.js";
 import { transporter } from "../../lib/nodemailer.js";
 import { prisma } from "../../lib/prisma.js";
 import { redisClient } from "../../lib/redis.js";
+import { AppError } from "../../utils/AppError.js";
 import { jwtUtils } from "../../utils/jwt.js";
 import type {
 	IForgotPasswordPayload,
@@ -223,7 +225,10 @@ const loginUser = async (payload: ILoginUserPayload) => {
 	});
 
 	if (!user) {
-		throw new Error("User not found");
+		throw new AppError(
+			httpStatus.UNAUTHORIZED,
+			"Invalid email or password",
+		);
 	}
 
 	if (user.status === UserStatus.BLOCKED) {
@@ -262,7 +267,10 @@ const loginUser = async (payload: ILoginUserPayload) => {
 	);
 
 	if (!isPasswordMatched) {
-		throw new Error("Invalid credentials");
+		throw new AppError(
+			httpStatus.UNAUTHORIZED,
+			"Invalid email or password",
+		);
 	}
 
 	const jwtPayload = {
