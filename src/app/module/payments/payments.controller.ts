@@ -42,8 +42,22 @@ const getSinglePayment = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
+const getDoctorPayments = catchAsync(async (req: Request, res: Response) => {
+    const user = req.user!;
+
+    const { data, meta } = await PaymentServices.getDoctorPayments(req.query as IQuery, user);
+    sendResponse(res, {
+        statusCode: httpStatus.OK,
+        success: true,
+        message: "Doctor Payments Retrieved Successfully",
+        data,
+        meta,
+    });
+});
+
 export const PaymentController = {
     getMyPayments,
     getAllPayments,
     getSinglePayment,
+    getDoctorPayments,
 };
