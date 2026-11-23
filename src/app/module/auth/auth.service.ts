@@ -232,15 +232,18 @@ const loginUser = async (payload: ILoginUserPayload) => {
 	}
 
 	if (user.status === UserStatus.BLOCKED) {
-		throw new Error("User is blocked");
+		throw new AppError(httpStatus.FORBIDDEN, "User is blocked");
 	}
 
 	if (user.isDeleted || user.status === UserStatus.DELETED) {
-		throw new Error("User is deleted");
+		throw new AppError(httpStatus.NOT_FOUND, "User not found");
 	}
 
 	if (!user.emailVerified) {
-		throw new Error("Please verify your email before logging in");
+		throw new AppError(
+			httpStatus.FORBIDDEN,
+			"Please verify your email before logging in",
+		);
 	}
 
 	if (user.role === Role.DOCTOR) {
@@ -251,13 +254,24 @@ const loginUser = async (payload: ILoginUserPayload) => {
 			!doctor ||
 			doctor.verificationStatus !== DoctorVerificationStatus.APPROVED
 		) {
-			throw new Error("Doctor application is not approved");
+			throw new AppError(
+				httpStatus.FORBIDDEN,
+				"Doctor application is not approved",
+			);
 		}
 	}
 
-	if (user.password === null && user.googleId !== null) {
-		throw new Error(
+	if (!user.password && user.googleId) {
+		throw new AppError(
+			httpStatus.UNAUTHORIZED,
 			"User Already Has Account Registered With Google. Try To Login With Google.",
+		);
+	}
+
+	if (!user.password) {
+		throw new AppError(
+			httpStatus.UNAUTHORIZED,
+			"Invalid email or password",
 		);
 	}
 

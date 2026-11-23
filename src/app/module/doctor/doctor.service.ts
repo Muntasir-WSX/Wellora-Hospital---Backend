@@ -1,6 +1,8 @@
 import bcrypt from "bcryptjs";
 import type { UploadApiResponse } from "cloudinary";
 import crypto from "crypto";
+import fs from "fs";
+import { fileURLToPath } from "url";
 import { addDays, startOfDay } from "date-fns";
 import ejs from "ejs";
 import httpStatus from "http-status";
@@ -285,6 +287,16 @@ const verifyDoctorEmail = async (payload: IVerifyDoctorEmailPayload) => {
 const approveDoctor = async (payload: IApproveDoctorPayload, reviewer: RequestUser) => {
   const { doctorId, verificationStatus, rejectionReason } = payload;
 
+  if (
+    verificationStatus !== DoctorVerificationStatus.APPROVED &&
+    verificationStatus !== DoctorVerificationStatus.REJECTED
+  ) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Invalid doctor verification status",
+    );
+  }
+
   const existingDoctor = await prisma.doctor.findUnique({
     where: { id: doctorId },
     include: { user: true },
@@ -306,6 +318,10 @@ const approveDoctor = async (payload: IApproveDoctorPayload, reviewer: RequestUs
   }
 
   if (existingDoctor.verificationStatus !== DoctorVerificationStatus.PENDING) {
+    if (existingDoctor.verificationStatus === verificationStatus) {
+      return existingDoctor;
+    }
+
     throw new AppError(
       httpStatus.CONFLICT,
       `Doctor Application Has Already Been ${existingDoctor.verificationStatus.toLowerCase()}`,
@@ -337,30 +353,49 @@ const approveDoctor = async (payload: IApproveDoctorPayload, reviewer: RequestUs
 
   const isApproved = verificationStatus === DoctorVerificationStatus.APPROVED;
 
-  const templatePath = path.join(
-    process.cwd(),
-    `src/app/templates/${
-      isApproved
-        ? "doctor-application-approved.ejs"
-        : "doctor-application-rejected.ejs"
-    }`,
-  );
-
   const templateData = {
     name: updatedDoctor.name,
     reason: updatedDoctor.rejectionReason,
   };
 
-  const html = await ejs.renderFile(templatePath, templateData);
+  const templateName = isApproved
+    ? "doctor.application.approved.ejs"
+    : "doctor.application.rejected.ejs";
+  const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
+  const templateCandidates = [
+    path.join(
+      moduleDirectory,
+      "../../templates",
+      templateName,
+    ),
+    path.join(process.cwd(), "src/app/templates", templateName),
+  ];
+  const templatePath = templateCandidates.find((candidate) =>
+    fs.existsSync(candidate),
+  );
 
-  await transporter.sendMail({
-    from: config.email_sender,
-    to: updatedDoctor.email,
-    subject: isApproved
-      ? "Your Doctor Application Has Been Approved"
-      : "Your Doctor Application Has Been Rejected",
-    html,
-  });
+  try {
+    let html: string;
+
+    if (templatePath) {
+      html = await ejs.renderFile(templatePath, templateData);
+    } else if (isApproved) {
+      html = `<p>Congratulations, Dr. ${updatedDoctor.name}! Your doctor application has been approved.</p>`;
+    } else {
+      html = `<p>Hello Dr. ${updatedDoctor.name}. Your doctor application was rejected.${updatedDoctor.rejectionReason ? ` Reason: ${updatedDoctor.rejectionReason}` : ""}</p>`;
+    }
+
+    await transporter.sendMail({
+      from: config.email_sender,
+      to: updatedDoctor.email,
+      subject: isApproved
+        ? "Your Doctor Application Has Been Approved"
+        : "Your Doctor Application Has Been Rejected",
+      html,
+    });
+  } catch (emailError) {
+    console.error("Doctor application status email failed:", emailError);
+  }
 
   return updatedDoctor;
 };
