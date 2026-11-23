@@ -3,7 +3,6 @@ import type { UploadApiResponse } from "cloudinary";
 import crypto from "crypto";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { addDays, startOfDay } from "date-fns";
 import ejs from "ejs";
 import httpStatus from "http-status";
 import path from "path";
@@ -17,6 +16,7 @@ import { prisma } from "../../lib/prisma.js";
 import { redisClient } from "../../lib/redis.js";
 import { RequestUser } from "../../middleware/checkAuth.js";
 import { AppError } from "../../utils/AppError.js";
+import { getDhakaDayBounds } from "../../utils/dateTime.js";
 import {
   IApplyAsDoctorPayload,
   IApproveDoctorPayload,
@@ -522,8 +522,8 @@ const getAvailableDoctorByTodaysSchedule = async (query: IQuery) => {
   const sortOrder = query.sortOrder ? query.sortOrder : "desc";
 
   const now = new Date();
-  const startOfToday = startOfDay(now);
-  const startOfTomorrow = addDays(startOfToday, 1);
+  const { start: startOfToday, end: startOfTomorrow } =
+    getDhakaDayBounds(now);
 
   const andConditions: DoctorWhereInput[] = [
     { isDeleted: false },

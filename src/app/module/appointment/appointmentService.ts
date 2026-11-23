@@ -1,4 +1,4 @@
-import { addMinutes, isBefore, isSameDay, subHours } from "date-fns";
+import { addMinutes, isBefore, subHours } from "date-fns";
 import httpStatus from "http-status";
 import PDFDocument from "pdfkit";
 import {
@@ -15,6 +15,7 @@ import { transporter } from "../../lib/nodemailer.js";
 import { prisma } from "../../lib/prisma.js";
 import type { RequestUser } from "../../middleware/checkAuth.js";
 import { AppError } from "../../utils/AppError.js";
+import { isSameDhakaDay } from "../../utils/dateTime.js";
 import {
 	IBookAppointmentPayload,
 	ICancelAppointmentPayload,
@@ -67,7 +68,7 @@ const bookAppointment = async (
 
 		const now = new Date();
 
-		if (!isSameDay(now, schedule.startDateTime)) {
+		if (!isSameDhakaDay(now, schedule.startDateTime)) {
 			throw new AppError(
 				httpStatus.BAD_REQUEST,
 				"This Schedule Is Not Available Today",

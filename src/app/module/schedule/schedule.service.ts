@@ -1,4 +1,4 @@
-import { addDays, differenceInMinutes, isAfter, isSameDay, startOfDay } from "date-fns";
+import { differenceInMinutes, isAfter, isBefore } from "date-fns";
 import httpStatus from "http-status";
 import { ScheduleStatus } from "../../../generated/prisma/enums.js";
 import { ScheduleWhereInput } from "../../../generated/prisma/models.js";
@@ -6,6 +6,7 @@ import { IQuery } from "../../interfaces/index.js";
 import { prisma } from "../../lib/prisma.js";
 import { RequestUser } from "../../middleware/checkAuth.js";
 import { AppError } from "../../utils/AppError.js";
+import { getDhakaDayBounds, isSameDhakaDay } from "../../utils/dateTime.js";
 import { ICreateSchedulePayload, IUpdateSchedulePayload } from "./schedule.interface.js";
 
 const getScheduleStatus = (status: string | undefined) => {
@@ -34,18 +35,24 @@ const createSchedule = async (payload : ICreateSchedulePayload , user : RequestU
     // 25 August => start Time  : 9:00 PM 
     // 26 August => end Time : 3:00AM
 
-    if(!isSameDay(payload.startDateTime, payload.endDateTime)){ 
+    if(!isSameDhakaDay(payload.startDateTime, payload.endDateTime)){ 
         throw new AppError(httpStatus.CONFLICT, "Start Date Time And End Date Time Must Be On The Same Day")
     }
     if(isAfter(payload.startDateTime, payload.endDateTime)){ // 25 August =>  3:00 PM - 9:00 PM
 
         throw new AppError(httpStatus.CONFLICT, "Start Date Time Cannot Be After End Date Time")
     }
+    if (isBefore(payload.startDateTime, new Date())) {
+        throw new AppError(
+            httpStatus.CONFLICT,
+            "Schedule Start Time Must Be In The Future",
+        );
+    }
 
 
     //startDateTime = 2026-08-25T13:30:00.436Z => 1:30 PM
-    const startOfTheDay = startOfDay(payload.startDateTime) // 25 August => 12:00 AM => 2026-08-25T00:00:00.436Z
-    const startOfNextDay = addDays(startOfTheDay, 1)  // 26 August => 12:00 AM => 2026-08-26T00:00:00.436Z
+    const { start: startOfTheDay, end: startOfNextDay } =
+        getDhakaDayBounds(payload.startDateTime);
 
     const existingScheduleOnThisDate = await prisma.schedule.findFirst({
         where : {
@@ -342,17 +349,23 @@ const updateSchedule = async (scheduleId : string, payload : IUpdateSchedulePayl
     // 25 August => start Time  : 9:00 PM 
     // 26 August => end Time : 3:00AM
 
-    if (!isSameDay(payload.startDateTime, payload.endDateTime)) {
+    if (!isSameDhakaDay(payload.startDateTime, payload.endDateTime)) {
         throw new AppError(httpStatus.CONFLICT, "Start Date Time And End Date Time Must Be On The Same Day")
     }
     if (isAfter(payload.startDateTime, payload.endDateTime)) { // 25 August =>  3:00 PM - 9:00 PM
 
         throw new AppError(httpStatus.CONFLICT, "Start Date Time Cannot Be After End Date Time")
     }
+    if (isBefore(payload.startDateTime, new Date())) {
+        throw new AppError(
+            httpStatus.CONFLICT,
+            "Schedule Start Time Must Be In The Future",
+        );
+    }
 
     //startDateTime = 2026-08-25T13:30:00.436Z => 1:30 PM
-    const startOfTheDay = startOfDay(payload.startDateTime) // 25 August => 12:00 AM => 2026-08-25T00:00:00.436Z
-    const startOfNextDay = addDays(startOfTheDay, 1)  // 26 August => 12:00 AM => 2026-08-26T00:00:00.436Z
+    const { start: startOfTheDay, end: startOfNextDay } =
+        getDhakaDayBounds(payload.startDateTime);
 
     const existingScheduleOnThisDate = await prisma.schedule.findFirst({
         where: {
@@ -438,6 +451,13 @@ const publishSchedule = async (scheduleId : string, user : RequestUser) => {
         throw new AppError(httpStatus.CONFLICT, "Schedule Is Already Published");
     }
 
+    if (isBefore(schedule.startDateTime, new Date())) {
+        throw new AppError(
+            httpStatus.CONFLICT,
+            "Past Schedules Cannot Be Published",
+        );
+    }
+
     const publishedSchedule = await prisma.schedule.update({
         where: { id: schedule.id },
         data: { status: ScheduleStatus.PUBLISHED },
@@ -496,8 +516,8 @@ const getTodaysSchedules = async (query : IQuery) => {
     const sortOrder = query.sortOrder ? query.sortOrder : "desc"
 
     const now = new Date();
-    const startOfToday = startOfDay(now);
-    const startOfTomorrow = addDays(startOfToday, 1)
+    const { start: startOfToday, end: startOfTomorrow } =
+        getDhakaDayBounds(now);
 
     const andConditions: ScheduleWhereInput[] = [
         {
