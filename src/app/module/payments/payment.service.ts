@@ -117,7 +117,7 @@ const getSinglePayment = async (paymentId: string, user: RequestUser) => {
                     patient: {
                         select: { id: true, name: true, email: true, userId: true },
                     },
-                    doctor: { select: { id: true, name: true, specialization: true } },
+                    doctor: { select: { id: true, name: true, specialization: true, userId: true } },
                     schedule: true,
                 },
             },
