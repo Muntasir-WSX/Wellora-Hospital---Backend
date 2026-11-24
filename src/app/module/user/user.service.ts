@@ -60,6 +60,17 @@ const updateMyProfile = async (
 		throw new AppError(httpStatus.NOT_FOUND, "User Not Found");
 	}
 
+	if (
+		user.role === Role.DOCTOR &&
+		payload.consultationFee !== undefined &&
+		payload.consultationFee <= 0
+	) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"Consultation Fee Must Be Greater Than 0",
+		);
+	}
+
 	return await prisma.$transaction(async (tx) => {
 		await tx.user.update({
 			where: { id: user.userId },

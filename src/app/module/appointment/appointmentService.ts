@@ -39,9 +39,8 @@ const bookAppointment = async (
 	payload: IBookAppointmentPayload,
 	user: RequestUser,
 ) => {
-	const transactionResult = await prisma.$transaction(async (tx) => {
-		// business logic
-
+	// 1. Fast DB validation & PENDING appointment creation
+	const { appointment, amount } = await prisma.$transaction(async (tx) => {
 		const patient = await tx.patient.findUnique({
 			where: { userId: user.userId },
 		});
@@ -81,18 +80,12 @@ const bookAppointment = async (
 				"This Schedule Has Already Started",
 			);
 		}
-		// if(isAfter(now, schedule.startDateTime)){
-		// 	throw new AppError(
-		// 		httpStatus.BAD_REQUEST,
-		// 		"This Schedule Has Already Started",
-		// 	);
-		// }
 
 		const existingAppointment = await tx.appointment.findFirst({
 			where: {
 				patientId: patient.id,
 				scheduleId: schedule.id,
-				// status : { not : AppointmentStatus.CANCELLED }
+				status: { not: AppointmentStatus.CANCELLED },
 			},
 		});
 
@@ -111,7 +104,7 @@ const bookAppointment = async (
 		if (existingAppointment?.status === AppointmentStatus.ONGOING) {
 			throw new AppError(
 				httpStatus.BAD_REQUEST,
-				"You Already Have A Ongoing Appointment",
+				"You Already Have An Ongoing Appointment",
 			);
 		}
 		if (existingAppointment?.status === AppointmentStatus.COMPLETED) {
@@ -121,7 +114,7 @@ const bookAppointment = async (
 			);
 		}
 
-		if (schedule.availableSlots === 0) {
+		if (schedule.availableSlots <= 0) {
 			throw new AppError(
 				httpStatus.BAD_REQUEST,
 				"This Schedule Is Fully Booked",
@@ -135,9 +128,9 @@ const bookAppointment = async (
 			);
 		}
 
-		const amount = schedule.doctor.consultationFee.toString();
+		const feeAmount = schedule.doctor.consultationFee.toString();
 
-		const appointment = await tx.appointment.create({
+		const createdAppointment = await tx.appointment.create({
 			data: {
 				type: payload.type,
 				status: AppointmentStatus.PENDING,
@@ -147,14 +140,13 @@ const bookAppointment = async (
 			},
 		});
 
-		const bkashIdToken = await getBkashIdToken();
+		return { appointment: createdAppointment, amount: feeAmount };
+	});
 
-		if (!bkashIdToken) {
-			throw new AppError(
-				httpStatus.BAD_GATEWAY,
-				"No Bkash Access Token Found!",
-			);
-		}
+	// 2. Initiate bKash payment outside DB transaction
+	try {
+		const bkashIdToken = await getBkashIdToken();
+		const cleanCallbackBase = config.bkash_callback_url.replace(/\/+$/, "");
 
 		const bkashCreatePaymentResponse = await fetch(
 			`${config.bkash_base_url}/tokenized/checkout/create`,
@@ -168,25 +160,36 @@ const bookAppointment = async (
 				},
 				body: JSON.stringify({
 					mode: "0011",
-					// payerReference: "0123456789", //user email or phone number
-					payerReference: user.email, //user email or phone number
-					callbackURL: `${config.bkash_callback_url}/appointment/book-appointment/payment/callback`,
+					payerReference: user.email,
+					callbackURL: `${cleanCallbackBase}/appointment/book-appointment/payment/callback`,
 					amount: amount,
 					currency: "BDT",
 					intent: "sale",
-					// merchantInvoiceNumber: "Inv4" // appointment id
-					merchantInvoiceNumber: appointment.id, // appointment id
+					merchantInvoiceNumber: appointment.id,
 				}),
 			},
 		);
 
 		const bkashCreatePaymentResult = await bkashCreatePaymentResponse.json();
 
-		//paymen model create
+		if (
+			!bkashCreatePaymentResponse.ok ||
+			bkashCreatePaymentResult.statusCode !== "0000" ||
+			!bkashCreatePaymentResult.bkashURL ||
+			!bkashCreatePaymentResult.paymentID
+		) {
+			throw new AppError(
+				httpStatus.BAD_GATEWAY,
+				bkashCreatePaymentResult?.statusMessage ||
+					bkashCreatePaymentResult?.message ||
+					"Failed to initiate bKash payment",
+			);
+		}
 
-		await tx.payment.create({
+		await prisma.payment.create({
 			data: {
-				merchantInvoiceNumber: bkashCreatePaymentResult.merchantInvoiceNumber,
+				merchantInvoiceNumber:
+					bkashCreatePaymentResult.merchantInvoiceNumber || appointment.id,
 				appointmentId: appointment.id,
 				amount: amount,
 				gatewayResponse: bkashCreatePaymentResult,
@@ -198,9 +201,13 @@ const bookAppointment = async (
 		return {
 			paymentUrl: bkashCreatePaymentResult.bkashURL,
 		};
-	});
-
-	return transactionResult;
+	} catch (error) {
+		// Clean up orphan PENDING appointment if bKash initiation fails
+		await prisma.appointment
+			.delete({ where: { id: appointment.id } })
+			.catch(() => {});
+		throw error;
+	}
 };
 
 const payAppointment = async (
@@ -217,6 +224,7 @@ const payAppointment = async (
 			},
 		},
 		include: {
+			payment: true,
 			schedule: {
 				include: {
 					doctor: true,
@@ -229,14 +237,16 @@ const payAppointment = async (
 		throw new AppError(httpStatus.NOT_FOUND, "Appointment Does Not Exists");
 	}
 
-	if (existingAppointment.status !== "PENDING") {
+	if (existingAppointment.status !== AppointmentStatus.PENDING) {
 		throw new AppError(httpStatus.BAD_REQUEST, "Appointment Is Not Pending!");
 	}
 
-	// if (existingAppointment.status === "CANCELLED" || existingAppointment.status === "ONGOING" || existingAppointment.status === "COMPLETED"){
-	//     const appointmentStatus = existingAppointment.status
-	//     throw new Error(`Appointment is already ${appointmentStatus.toLowerCase}`)
-	// }
+	if (!isBefore(new Date(), existingAppointment.schedule.startDateTime)) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"This Schedule Has Already Started",
+		);
+	}
 
 	if (!existingAppointment.schedule.doctor.consultationFee) {
 		throw new AppError(
@@ -247,10 +257,7 @@ const payAppointment = async (
 
 	const amount = existingAppointment.schedule.doctor.consultationFee.toString();
 	const bkashIdToken = await getBkashIdToken();
-
-	if (!bkashIdToken) {
-		throw new AppError(httpStatus.BAD_GATEWAY, "No Bkash Access Token Found!");
-	}
+	const cleanCallbackBase = config.bkash_callback_url.replace(/\/+$/, "");
 
 	const bkashCreatePaymentResponse = await fetch(
 		`${config.bkash_base_url}/tokenized/checkout/create`,
@@ -264,29 +271,52 @@ const payAppointment = async (
 			},
 			body: JSON.stringify({
 				mode: "0011",
-				// payerReference: "0123456789", //user email or phone number
-				payerReference: user.email, //user email or phone number
-				callbackURL: `${config.bkash_callback_url}/appointment/book-appointment/payment/callback`,
+				payerReference: user.email,
+				callbackURL: `${cleanCallbackBase}/appointment/book-appointment/payment/callback`,
 				amount: amount,
 				currency: "BDT",
 				intent: "sale",
-				// merchantInvoiceNumber: "Inv4" // appointment id
-				merchantInvoiceNumber: existingAppointment.id, // appointment id
+				merchantInvoiceNumber: existingAppointment.id,
 			}),
 		},
 	);
 
 	const bkashCreatePaymentResult = await bkashCreatePaymentResponse.json();
 
-	await prisma.payment.update({
+	if (
+		!bkashCreatePaymentResponse.ok ||
+		bkashCreatePaymentResult.statusCode !== "0000" ||
+		!bkashCreatePaymentResult.bkashURL ||
+		!bkashCreatePaymentResult.paymentID
+	) {
+		throw new AppError(
+			httpStatus.BAD_GATEWAY,
+			bkashCreatePaymentResult?.statusMessage ||
+				bkashCreatePaymentResult?.message ||
+				"Failed to initiate bKash payment",
+		);
+	}
+
+	await prisma.payment.upsert({
 		where: {
 			appointmentId: existingAppointment.id,
 		},
-
-		data: {
-			merchantInvoiceNumber: bkashCreatePaymentResult.merchantInvoiceNumber,
+		update: {
+			merchantInvoiceNumber:
+				bkashCreatePaymentResult.merchantInvoiceNumber ||
+				existingAppointment.id,
 			gatewayResponse: bkashCreatePaymentResult,
 			bkashPaymentId: bkashCreatePaymentResult.paymentID,
+		},
+		create: {
+			merchantInvoiceNumber:
+				bkashCreatePaymentResult.merchantInvoiceNumber ||
+				existingAppointment.id,
+			appointmentId: existingAppointment.id,
+			amount: amount,
+			gatewayResponse: bkashCreatePaymentResult,
+			bkashPaymentId: bkashCreatePaymentResult.paymentID,
+			payerReference: user.email,
 		},
 	});
 
@@ -615,7 +645,10 @@ const cancelAppointment = async (
 
 		// now >  refuncCutOff Time => no refund
 		// now < refundCutOff Time => refund eligible
-		const isEligibleForRefund = isBefore(now, refundCutOffTime);
+		const isEligibleForRefund = existingAppointment.payment?.status === PaymentStatus.PAID &&
+			Boolean(existingAppointment.payment?.bkashPaymentId) &&
+			Boolean(existingAppointment.payment?.bkashTrxId) &&
+			isBefore(now, refundCutOffTime);
 
 		if (isEligibleForRefund) {
 			const bkashIdToken = await getBkashIdToken();
