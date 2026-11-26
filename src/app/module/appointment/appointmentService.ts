@@ -146,7 +146,16 @@ const bookAppointment = async (
 	// 2. Initiate bKash payment outside DB transaction
 	try {
 		const bkashIdToken = await getBkashIdToken();
-		const cleanCallbackBase = config.bkash_callback_url.replace(/\/+$/, "");
+		const cleanCallbackBase = config.bkash_callback_url?.trim().replace(/\/+$/, "");
+
+if (!cleanCallbackBase || !cleanCallbackBase.startsWith("https://")) {
+  throw new AppError(
+    httpStatus.INTERNAL_SERVER_ERROR,
+    "BKASH_CALLBACK_URL must be a valid public HTTPS URL",
+  );
+}
+
+const callbackURL = `${cleanCallbackBase}/appointment/book-appointment/payment/callback`;
 
 		const bkashCreatePaymentResponse = await fetch(
 			`${config.bkash_base_url}/tokenized/checkout/create`,
