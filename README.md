@@ -2,7 +2,7 @@
 
 Production-oriented REST API for the WellOra Hospital Management Platform. The
 backend provides authentication, role-based access control, doctor onboarding,
-schedule management, appointments, bKash payments, prescriptions, reviews,
+schedule management, appointments, SSLCOMMERZ payments, prescriptions, reviews,
 departments, analytics, email notifications, and file storage.
 
 ## Technology Stack
@@ -14,7 +14,7 @@ departments, analytics, email notifications, and file storage.
 - PostgreSQL
 - Redis
 - JWT and Google OAuth
-- bKash Tokenized Checkout
+- SSLCOMMERZ Hosted Checkout
 - Cloudinary
 - Nodemailer
 - Zod
@@ -26,7 +26,7 @@ departments, analytics, email notifications, and file storage.
 - Redis
 - Cloudinary account
 - SMTP account
-- bKash merchant credentials for payment features
+- SSLCOMMERZ merchant credentials for payment features
 
 ## Installation
 
@@ -123,7 +123,7 @@ The complete configuration is mapped in `src/app/config/index.ts`.
 | Redis | `REDIS_USER`, `REDIS_PASSWORD`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_TLS` |
 | SMTP | `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_SENDER` |
 | Cloudinary | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` |
-| bKash | `BKASH_BASE_URL`, `BKASH_USERNAME`, `BKASH_PASSWORD`, `BKASH_APP_KEY`, `BKASH_APP_SECRET`, `BKASH_CALLBACK_URL` |
+| SSLCOMMERZ | `SSLCOMMERZ_BASE_URL`, `SSLCOMMERZ_STORE_ID`, `SSLCOMMERZ_STORE_PASSWORD` |
 | Seed accounts | `ADMIN_*`, `MODERATOR_*` |
 
 Do not commit `.env` files or credentials.
@@ -186,7 +186,8 @@ documents.
 | `DELETE` | `/schedule/:scheduleId` | Doctor |
 | `POST` | `/appointment/book-appointment` | Patient |
 | `POST` | `/appointment/pay-appointment` | Patient |
-| `GET` | `/appointment/book-appointment/payment/callback` | bKash |
+| `POST` | `/appointment/book-appointment/payment/callback` | SSLCOMMERZ |
+| `POST` | `/appointment/payment/ipn` | SSLCOMMERZ IPN |
 | `POST` | `/appointment/cancel-appointment` | Patient/Admin |
 | `PATCH` | `/appointment/update-status/:appointmentId` | Doctor |
 | `GET` | `/appointment/my-appointments` | Patient |
@@ -204,7 +205,12 @@ Appointments support `ONLINE` and `IN_PERSON` types.
 | `GET` | `/payment/all-payments` | Admin |
 | `GET` | `/payment/:paymentId` | Patient/Admin |
 
-The current payment integration uses bKash Tokenized Checkout.
+Appointment checkout redirects patients to the SSLCOMMERZ hosted payment
+page. Configure `BACKEND_URL` as a public HTTPS base URL for callback and IPN
+delivery. SSLCOMMERZ returns payment results through POST requests; the API
+validates successful transactions server-to-server before confirming an
+appointment. Refund requests are tracked as `REFUND_PENDING` until SSLCOMMERZ
+confirms completion.
 
 ### Prescriptions and reviews
 
@@ -257,7 +263,7 @@ The Prisma schema is split across `prisma/schema/` and includes:
 - Users, patients, and doctors
 - Departments and doctor assignments
 - Doctor schedules and appointments
-- Payments and bKash transaction metadata
+- Payments and gateway transaction metadata
 - Structured prescriptions and generated PDF references
 - Patient reviews and doctor ratings
 
@@ -279,7 +285,7 @@ src/
 ├── generated/prisma/              # Generated Prisma Client
 └── app/
     ├── config/                    # Environment configuration
-    ├── lib/                       # Prisma, Redis, bKash, mail, storage utilities
+    ├── lib/                       # Prisma, Redis, SSLCOMMERZ, mail, storage utilities
     ├── middleware/               # Auth, validation, error, and 404 middleware
     ├── module/                   # Feature modules
     │   ├── analytics/

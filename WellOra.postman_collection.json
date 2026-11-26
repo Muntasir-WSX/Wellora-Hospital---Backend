@@ -1042,7 +1042,7 @@
                 "cancel-appointment"
               ]
             },
-            "description": "Expected: **200** with `data: { appointment, payment }`. PATIENT (own appointment)/ADMIN/SUPER_ADMIN. Frees the schedule slot back up. If cancelled more than 1 hour before `startDateTime` and the payment was `PAID`, a bKash refund is issued automatically. Fails with 400 if already `CANCELLED`/`ONGOING`/`COMPLETED`."
+            "description": "Expected: **200** with `data: { appointment, payment }`. PATIENT (own appointment)/ADMIN/SUPER_ADMIN. Frees the schedule slot back up. If cancelled more than 1 hour before `startDateTime` and the payment was `PAID`, an SSLCOMMERZ refund is requested automatically. Fails with 400 if already `CANCELLED`/`ONGOING`/`COMPLETED`."
           },
           "response": []
         },
@@ -1052,10 +1052,30 @@
             "auth": {
               "type": "noauth"
             },
-            "method": "GET",
+            "method": "POST",
             "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "tran_id",
+                  "value": "<sslcommerz-transaction-id>",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "VALID",
+                  "type": "text"
+                },
+                {
+                  "key": "val_id",
+                  "value": "<sslcommerz-validation-id>",
+                  "type": "text"
+                }
+              ]
+            },
             "url": {
-              "raw": "{{baseUrl}}/appointment/book-appointment/payment/callback?paymentID=<bkash-payment-id>&status=success",
+              "raw": "{{baseUrl}}/appointment/book-appointment/payment/callback",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1064,19 +1084,9 @@
                 "book-appointment",
                 "payment",
                 "callback"
-              ],
-              "query": [
-                {
-                  "key": "paymentID",
-                  "value": "<bkash-payment-id>"
-                },
-                {
-                  "key": "status",
-                  "value": "success"
-                }
               ]
             },
-            "description": "Expected: **200**, redirect payload. No auth — this is the URL bKash itself redirects the patient's browser to after checkout (`status` is one of `success`/`failure`/`cancel`). On success it confirms the appointment, assigns a serial number/joining time, decrements `availableSlots`, marks the payment `PAID`, and emails a PDF invoice. Not meant to be called manually except to replay a bKash sandbox redirect."
+            "description": "No auth — SSLCOMMERZ POSTs the checkout result here. Successful results are verified with the SSLCOMMERZ validation API before confirming the appointment and emailing the invoice. Do not replay a successful callback manually; use an actual sandbox checkout."
           },
           "response": []
         },

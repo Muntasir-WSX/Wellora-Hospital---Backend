@@ -8,7 +8,6 @@ import express, {
 } from "express";
 import httpStatus from "http-status";
 import config from "./app/config/index.js";
-import { getBkashIdToken } from "./app/lib/bkash.js";
 import { globalErrorHandler } from "./app/middleware/globalErrorHandler.js";
 import { notFound } from "./app/middleware/notFound.js";
 import { auth } from "./app/middleware/checkAuth.js";
@@ -59,8 +58,6 @@ app.get(
 	auth(Role.ADMIN, Role.SUPER_ADMIN),
 	async (req: Request, res: Response, next: NextFunction) => {
 		try {
-			const grantIdTokenResult = await getBkashIdToken();
-
 			res.status(httpStatus.OK).json({
 				success: true,
 				message: "Welcome to WellOra Backend",

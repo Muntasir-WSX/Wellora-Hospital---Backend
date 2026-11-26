@@ -1,7 +1,7 @@
 model Department {
   id          String   @id @default(uuid())
   name        String   @unique
-  slug        String?   @unique
+  slug        String?  @unique
   description String?
   imageUrl    String?
   doctors     Doctor[]

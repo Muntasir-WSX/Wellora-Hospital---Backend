@@ -34,18 +34,17 @@ const payAppointment = catchAsync(async (req: Request, res: Response) => {
 const bookAppointmentCallback = catchAsync(
 	async (req: Request, res: Response) => {
 		const { redirectUrl } = await AppointmentServices.bookAppointmentCallback(
-			req.query,
+			req.body,
 		);
 
 		res.redirect(redirectUrl);
-		// sendResponse(res, {
-		//     statusCode: httpStatus.OK,
-		//     success: true,
-		//     message: "User profile fetched successfully",
-		//     data: result,
-		// });
 	},
 );
+
+const sslcommerzIpn = catchAsync(async (req: Request, res: Response) => {
+	await AppointmentServices.processSslcommerzNotification(req.body);
+	res.status(httpStatus.OK).send("OK");
+});
 
 const cancelAppointment = catchAsync(async (req: Request, res: Response) => {
 	const payload = req.body;
@@ -55,7 +54,7 @@ const cancelAppointment = catchAsync(async (req: Request, res: Response) => {
 	sendResponse(res, {
 		statusCode: httpStatus.OK,
 		success: true,
-		message: "Appointment Cancelled And Refunded Successfully",
+		message: "Appointment Cancelled Successfully",
 		data: result,
 	});
 });
@@ -148,6 +147,7 @@ export const AppointmentController = {
 	bookAppointment,
 	payAppointment,
 	bookAppointmentCallback,
+	sslcommerzIpn,
 	cancelAppointment,
 	updateAppointmentStatus,
 	getMyAppointments,

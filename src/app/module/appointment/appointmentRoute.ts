@@ -24,10 +24,13 @@ router.post(
 	AppointmentController.cancelAppointment,
 );
 
-//book appointment callback url
-router.get(
+router.post(
 	"/book-appointment/payment/callback",
 	AppointmentController.bookAppointmentCallback,
+);
+router.post(
+	"/payment/ipn",
+	AppointmentController.sslcommerzIpn,
 );
 
 router.patch(

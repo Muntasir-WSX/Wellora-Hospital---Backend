@@ -3,14 +3,21 @@ import httpStatus from "http-status";
 import PDFDocument from "pdfkit";
 import {
 	AppointmentStatus,
+	PaymentGateway,
 	PaymentStatus,
 	Role,
 	ScheduleStatus,
 } from "../../../generated/prisma/enums.js";
+import { Prisma } from "../../../generated/prisma/client.js";
 import { AppointmentWhereInput } from "../../../generated/prisma/models.js";
 import config from "../../config/index.js";
 import { IQuery } from "../../interfaces/index.js";
-import { getBkashIdToken } from "../../lib/bkash.js";
+import {
+	createSslcommerzSession,
+	createSslcommerzTransactionId,
+	requestSslcommerzRefund,
+	validateSslcommerzPayment,
+} from "../../lib/sslcommerz.js";
 import { transporter } from "../../lib/nodemailer.js";
 import { prisma } from "../../lib/prisma.js";
 import type { RequestUser } from "../../middleware/checkAuth.js";
@@ -35,20 +42,81 @@ const getAppointmentStatus = (status: string | undefined) => {
 	return status as AppointmentStatus;
 };
 
-const getValidatedBkashCallbackUrl = (): string => {
-	const cleanCallbackBase = (config.bkash_callback_url || "")
+const getSslcommerzCallbackUrls = () => {
+	const cleanBackendUrl = (config.backend_url || "")
 		.trim()
 		.replace(/[\r\n]/g, "")
 		.replace(/\/+$/, "");
 
-	if (!cleanCallbackBase || !cleanCallbackBase.startsWith("https://")) {
+	try {
+		const parsedUrl = new URL(cleanBackendUrl);
+		if (
+			parsedUrl.protocol !== "https:" ||
+			parsedUrl.username ||
+			parsedUrl.password ||
+			parsedUrl.search ||
+			parsedUrl.hash
+		) {
+			throw new Error("Invalid backend URL");
+		}
+	} catch {
 		throw new AppError(
 			httpStatus.INTERNAL_SERVER_ERROR,
-			`BKASH_CALLBACK_URL must be a valid public HTTPS URL (Received: "${cleanCallbackBase || "empty"}")`,
+			"BACKEND_URL must be a valid public HTTPS URL for SSLCOMMERZ callbacks",
 		);
 	}
 
-	return `${cleanCallbackBase}/appointment/book-appointment/payment/callback`;
+	const apiBaseUrl = `${cleanBackendUrl}/api/v1`;
+	return {
+		success: `${apiBaseUrl}/appointment/book-appointment/payment/callback`,
+		fail: `${apiBaseUrl}/appointment/book-appointment/payment/callback`,
+		cancel: `${apiBaseUrl}/appointment/book-appointment/payment/callback`,
+		ipn: `${apiBaseUrl}/appointment/payment/ipn`,
+	};
+};
+
+const createAppointmentPaymentSession = async ({
+	appointmentId,
+	amount,
+	patient,
+}: {
+	appointmentId: string;
+	amount: string;
+	patient: { name: string; email: string; contactNumber: string | null; address: string | null };
+}) => {
+	if (!patient.contactNumber?.trim()) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"Please add a contact number to your patient profile before paying",
+		);
+	}
+
+	const callbackUrls = getSslcommerzCallbackUrls();
+	const transactionId = createSslcommerzTransactionId();
+	const session = await createSslcommerzSession({
+		total_amount: amount,
+		currency: "BDT",
+		tran_id: transactionId,
+		success_url: callbackUrls.success,
+		fail_url: callbackUrls.fail,
+		cancel_url: callbackUrls.cancel,
+		ipn_url: callbackUrls.ipn,
+		product_name: "Doctor Consultation",
+		product_category: "Healthcare",
+		product_profile: "healthcare",
+		cus_name: patient.name.slice(0, 50),
+		cus_email: patient.email.slice(0, 50),
+		cus_add1: (patient.address?.trim() || "Not provided").slice(0, 50),
+		cus_city: "Dhaka",
+		cus_country: "Bangladesh",
+		cus_postcode: "1200",
+		cus_phone: patient.contactNumber.trim().slice(0, 20),
+		shipping_method: "NO",
+		num_of_item: "1",
+		value_a: appointmentId,
+	});
+
+	return { session, transactionId };
 };
 
 const bookAppointment = async (
@@ -56,7 +124,7 @@ const bookAppointment = async (
 	user: RequestUser,
 ) => {
 	// 1. Fast DB validation & PENDING appointment creation
-	const { appointment, amount } = await prisma.$transaction(async (tx) => {
+	const { appointment, amount, patient } = await prisma.$transaction(async (tx) => {
 		const patient = await tx.patient.findUnique({
 			where: { userId: user.userId },
 		});
@@ -156,72 +224,35 @@ const bookAppointment = async (
 			},
 		});
 
-		return { appointment: createdAppointment, amount: feeAmount };
+		return { appointment: createdAppointment, amount: feeAmount, patient };
 	});
 
-	// 2. Initiate bKash payment outside DB transaction
+	// 2. Initiate SSLCOMMERZ payment outside the DB transaction
 	try {
-		const bkashIdToken = await getBkashIdToken();
-		const callbackURL = getValidatedBkashCallbackUrl();
-
-		const bkashCreatePaymentResponse = await fetch(
-			`${config.bkash_base_url}/tokenized/checkout/create`,
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Accept: "application/json",
-					Authorization: bkashIdToken,
-					"X-App-Key": config.bkash_app_key,
-				},
-				body: JSON.stringify({
-					mode: "0011",
-					payerReference: user.email,
-					callbackURL,
-					amount,
-					currency: "BDT",
-					intent: "sale",
-					merchantInvoiceNumber: appointment.id,
-				}),
-			},
-		);
-
-		const bkashCreatePaymentResult = await bkashCreatePaymentResponse.json();
-
-		if (
-			!bkashCreatePaymentResponse.ok ||
-			bkashCreatePaymentResult.statusCode !== "0000" ||
-			!bkashCreatePaymentResult.bkashURL ||
-			!bkashCreatePaymentResult.paymentID
-		) {
-			const gatewayMsg =
-				bkashCreatePaymentResult?.statusMessage ||
-				bkashCreatePaymentResult?.message ||
-				"Failed to initiate bKash payment";
-
-			throw new AppError(
-				httpStatus.BAD_GATEWAY,
-				`${gatewayMsg} (callbackURL: ${callbackURL})`,
-			);
-		}
+		const { session, transactionId } = await createAppointmentPaymentSession({
+			appointmentId: appointment.id,
+			amount,
+			patient,
+		});
 
 		await prisma.payment.create({
 			data: {
-				merchantInvoiceNumber:
-					bkashCreatePaymentResult.merchantInvoiceNumber || appointment.id,
+				paymentGateway: PaymentGateway.SSLCOMMERZ,
+				merchantInvoiceNumber: transactionId,
 				appointmentId: appointment.id,
 				amount,
-				gatewayResponse: bkashCreatePaymentResult,
-				bkashPaymentId: bkashCreatePaymentResult.paymentID,
+				gatewayResponse: session as Prisma.InputJsonValue,
+				gatewayPaymentId:
+					typeof session.sessionkey === "string" ? session.sessionkey : null,
 				payerReference: user.email,
 			},
 		});
 
 		return {
-			paymentUrl: bkashCreatePaymentResult.bkashURL,
+			paymentUrl: session.GatewayPageURL,
 		};
 	} catch (error) {
-		// Clean up orphan PENDING appointment if bKash initiation fails
+		// Clean up the orphan PENDING appointment if checkout initialization fails.
 		await prisma.appointment
 			.delete({ where: { id: appointment.id } })
 			.catch(() => {});
@@ -244,6 +275,7 @@ const payAppointment = async (
 		},
 		include: {
 			payment: true,
+			patient: true,
 			schedule: {
 				include: {
 					doctor: true,
@@ -275,224 +307,290 @@ const payAppointment = async (
 	}
 
 	const amount = existingAppointment.schedule.doctor.consultationFee.toString();
-	const bkashIdToken = await getBkashIdToken();
-	const callbackURL = getValidatedBkashCallbackUrl();
-
-	const bkashCreatePaymentResponse = await fetch(
-		`${config.bkash_base_url}/tokenized/checkout/create`,
-		{
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Accept: "application/json",
-				Authorization: bkashIdToken,
-				"X-App-Key": config.bkash_app_key,
-			},
-			body: JSON.stringify({
-				mode: "0011",
-				payerReference: user.email,
-				callbackURL,
-				amount,
-				currency: "BDT",
-				intent: "sale",
-				merchantInvoiceNumber: existingAppointment.id,
-			}),
-		},
-	);
-
-	const bkashCreatePaymentResult = await bkashCreatePaymentResponse.json();
-
-	if (
-		!bkashCreatePaymentResponse.ok ||
-		bkashCreatePaymentResult.statusCode !== "0000" ||
-		!bkashCreatePaymentResult.bkashURL ||
-		!bkashCreatePaymentResult.paymentID
-	) {
-		const gatewayMsg =
-			bkashCreatePaymentResult?.statusMessage ||
-			bkashCreatePaymentResult?.message ||
-			"Failed to initiate bKash payment";
-
-		throw new AppError(
-			httpStatus.BAD_GATEWAY,
-			`${gatewayMsg} (callbackURL: ${callbackURL})`,
-		);
-	}
+	const { session, transactionId } = await createAppointmentPaymentSession({
+		appointmentId: existingAppointment.id,
+		amount,
+		patient: existingAppointment.patient,
+	});
 
 	await prisma.payment.upsert({
 		where: {
 			appointmentId: existingAppointment.id,
 		},
 		update: {
-			merchantInvoiceNumber:
-				bkashCreatePaymentResult.merchantInvoiceNumber ||
-				existingAppointment.id,
-			gatewayResponse: bkashCreatePaymentResult,
-			bkashPaymentId: bkashCreatePaymentResult.paymentID,
+			status: PaymentStatus.UNPAID,
+			paymentGateway: PaymentGateway.SSLCOMMERZ,
+			merchantInvoiceNumber: transactionId,
+			amount,
+			gatewayResponse: session as Prisma.InputJsonValue,
+			gatewayPaymentId:
+				typeof session.sessionkey === "string" ? session.sessionkey : null,
+			gatewayTransactionId: null,
+			paidAt: null,
 		},
 		create: {
-			merchantInvoiceNumber:
-				bkashCreatePaymentResult.merchantInvoiceNumber ||
-				existingAppointment.id,
+			paymentGateway: PaymentGateway.SSLCOMMERZ,
+			merchantInvoiceNumber: transactionId,
 			appointmentId: existingAppointment.id,
 			amount,
-			gatewayResponse: bkashCreatePaymentResult,
-			bkashPaymentId: bkashCreatePaymentResult.paymentID,
+			gatewayResponse: session as Prisma.InputJsonValue,
+			gatewayPaymentId:
+				typeof session.sessionkey === "string" ? session.sessionkey : null,
 			payerReference: user.email,
 		},
 	});
 
 	return {
-		paymentUrl: bkashCreatePaymentResult.bkashURL,
+		paymentUrl: session.GatewayPageURL,
 	};
 };
 
-const bookAppointmentCallback = async (query: Record<string, any>) => {
-	const paymentId = query.paymentID as string | undefined;
-	const status = query.status as string | undefined;
-
-	if (!paymentId) {
-		throw new AppError(httpStatus.BAD_REQUEST, "Payment Id Missing");
+const processSslcommerzNotification = async (notification: unknown) => {
+	if (!notification || typeof notification !== "object") {
+		throw new AppError(httpStatus.BAD_REQUEST, "Invalid payment notification");
 	}
 
-	if (!status) {
-		throw new AppError(httpStatus.BAD_REQUEST, "Payment Status is Missing");
+	const body = notification as Record<string, unknown>;
+	const transactionId =
+		typeof body.tran_id === "string" ? body.tran_id : undefined;
+	const status = typeof body.status === "string" ? body.status.toUpperCase() : "";
+
+	if (!transactionId) {
+		throw new AppError(httpStatus.BAD_REQUEST, "Payment transaction ID missing");
 	}
 
-	const cleanFrontendUrl = (config.frontend_url || "http://localhost:3000")
-		.trim()
-		.replace(/[\r\n]/g, "")
-		.replace(/\/+$/, "");
+	const payment = await prisma.payment.findUnique({
+		where: { merchantInvoiceNumber: transactionId },
+	});
 
-	// Execute payment with bKash outside DB transaction
-	let executedPaymentResult: Record<string, any> = {};
-	let callbackStatus: "success" | "cancel" | "failure" =
-		status === "cancel" ? "cancel" : "failure";
+	if (!payment) {
+		throw new AppError(httpStatus.NOT_FOUND, "Payment Not Found");
+	}
 
-	if (status === "success") {
-		const bkashIdToken = await getBkashIdToken();
-
-		if (!bkashIdToken) {
-			throw new AppError(
-				httpStatus.BAD_GATEWAY,
-				"No Bkash Access Token Found!",
-			);
-		}
-
-		const executedPaymentResponse = await fetch(
-			`${config.bkash_base_url}/tokenized/checkout/execute`,
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Accept: "application/json",
-					Authorization: bkashIdToken,
-					"X-App-Key": config.bkash_app_key,
-				},
-				body: JSON.stringify({
-					paymentID: paymentId,
-				}),
+	if (["FAILED", "FAIL", "INVALID"].includes(status)) {
+		await prisma.payment.updateMany({
+			where: { id: payment.id, status: PaymentStatus.UNPAID },
+			data: {
+				status: PaymentStatus.FAILED,
+				gatewayResponse: {
+					status,
+					tran_id: transactionId,
+				} as Prisma.InputJsonValue,
 			},
-		);
-
-		executedPaymentResult = await executedPaymentResponse.json();
-		callbackStatus =
-			executedPaymentResult.statusCode === "0000" &&
-			executedPaymentResult.transactionStatus === "Completed"
-				? "success"
-				: "failure";
+		});
+		return "failure" as const;
 	}
 
-	if (callbackStatus === "success") {
-		const confirmedData = await prisma.$transaction(
-			async (tx) => {
-				const payment = await tx.payment.findUnique({
-					where: { bkashPaymentId: paymentId },
-					include: {
-						appointment: {
-							include: {
-								schedule: true,
-								patient: true,
-								doctor: true,
-							},
+	if (["CANCELLED", "CANCELED"].includes(status)) {
+		await prisma.payment.updateMany({
+			where: { id: payment.id, status: PaymentStatus.UNPAID },
+			data: {
+				status: PaymentStatus.CANCELLED,
+				gatewayResponse: {
+					status,
+					tran_id: transactionId,
+				} as Prisma.InputJsonValue,
+			},
+		});
+		return "cancel" as const;
+	}
+
+	if (!["VALID", "VALIDATED", "SUCCESS"].includes(status)) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"Unsupported SSLCOMMERZ payment status",
+		);
+	}
+
+	const validationId =
+		typeof body.val_id === "string" ? body.val_id : undefined;
+	if (!validationId) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"SSLCOMMERZ validation ID missing",
+		);
+	}
+
+	const validation = await validateSslcommerzPayment(validationId);
+	const validationStatus =
+		typeof validation.status === "string"
+			? validation.status.toUpperCase()
+			: "";
+	const validatedTransactionId =
+		typeof validation.tran_id === "string" ? validation.tran_id : "";
+	const bankTransactionId =
+		typeof validation.bank_tran_id === "string"
+			? validation.bank_tran_id
+			: "";
+	const validatedAmount = Number(validation.amount);
+	const expectedAmount = Number(payment.amount);
+	const validatedCurrency =
+		typeof validation.currency === "string"
+			? validation.currency.toUpperCase()
+			: "";
+
+	if (
+		!["VALID", "VALIDATED"].includes(validationStatus) ||
+		validatedTransactionId !== transactionId ||
+		!bankTransactionId ||
+		!Number.isFinite(validatedAmount) ||
+		validatedAmount.toFixed(2) !== expectedAmount.toFixed(2) ||
+		validatedCurrency !== payment.currency.toUpperCase()
+	) {
+		throw new AppError(
+			httpStatus.BAD_REQUEST,
+			"SSLCOMMERZ payment details could not be verified",
+		);
+	}
+
+	const gatewayResponse = {
+		val_id: validationId,
+		tran_id: validatedTransactionId,
+		bank_tran_id: bankTransactionId,
+		status: validationStatus,
+		amount: validatedAmount,
+		currency: validatedCurrency,
+		validated_on:
+			typeof validation.validated_on === "string"
+				? validation.validated_on
+				: null,
+	} as Prisma.InputJsonValue;
+
+	const confirmedData = await prisma.$transaction(
+		async (tx) => {
+			const currentPayment = await tx.payment.findUnique({
+				where: { id: payment.id },
+				include: {
+					appointment: {
+						include: {
+							schedule: true,
+							patient: true,
+							doctor: true,
 						},
 					},
-				});
+				},
+			});
+			const appointment = currentPayment?.appointment;
 
-				const appointment = payment?.appointment;
-
-				if (!payment || !appointment) {
-					throw new AppError(
-						httpStatus.NOT_FOUND,
-						"Payment or appointment not found",
-					);
-				}
-
-				if (
-					executedPaymentResult.merchantInvoiceNumber !== appointment.id ||
-					Number(executedPaymentResult.amount) !== Number(payment.amount)
-				) {
-					throw new AppError(
-						httpStatus.BAD_REQUEST,
-						"Payment details could not be verified",
-					);
-				}
-
-				const alreadyBookedSlots =
-					appointment.schedule.totalSlots - appointment.schedule.availableSlots;
-				const serialNumber = alreadyBookedSlots + 1;
-				const joiningTime = addMinutes(
-					appointment.schedule.startDateTime,
-					(serialNumber - 1) * 20,
+			if (!currentPayment || !appointment) {
+				throw new AppError(
+					httpStatus.NOT_FOUND,
+					"Payment or appointment not found",
 				);
+			}
 
-				await tx.appointment.update({
-					where: {
-						id: appointment.id,
-					},
-					data: {
-						status: AppointmentStatus.CONFIRMED,
-						joiningTime,
-						serialNumber,
+			if (currentPayment.paymentGateway !== PaymentGateway.SSLCOMMERZ) {
+				throw new AppError(
+					httpStatus.BAD_REQUEST,
+					"Payment gateway does not match the notification",
+				);
+			}
+
+			if (currentPayment.status === PaymentStatus.PAID) {
+				return {
+					appointment,
+					serialNumber: appointment.serialNumber ?? 0,
+					joiningTime: appointment.joiningTime ?? appointment.schedule.startDateTime,
+					shouldSendInvoice: false,
+				};
+			}
+
+			if (currentPayment.status !== PaymentStatus.UNPAID) {
+				throw new AppError(
+					httpStatus.CONFLICT,
+					"Payment is no longer awaiting confirmation",
+				);
+			}
+
+			const claimedPayment = await tx.payment.updateMany({
+				where: {
+					id: currentPayment.id,
+					status: PaymentStatus.UNPAID,
+				},
+				data: {
+					status: PaymentStatus.PAID,
+					gatewayPaymentId: validationId,
+					gatewayTransactionId: bankTransactionId,
+					paidAt: new Date(),
+					gatewayResponse,
+				},
+			});
+
+			if (claimedPayment.count !== 1) {
+				const latestAppointment = await tx.appointment.findUnique({
+					where: { id: appointment.id },
+					include: {
+						schedule: true,
+						patient: true,
+						doctor: true,
 					},
 				});
+				if (!latestAppointment) {
+					throw new AppError(httpStatus.NOT_FOUND, "Appointment Not Found");
+				}
+				return {
+					appointment: latestAppointment,
+					serialNumber: latestAppointment.serialNumber ?? 0,
+					joiningTime:
+						latestAppointment.joiningTime ??
+						latestAppointment.schedule.startDateTime,
+					shouldSendInvoice: false,
+				};
+			}
 
-				await tx.schedule.update({
-					where: {
-						id: appointment.schedule.id,
-					},
-					data: {
-						availableSlots: Math.max(
-							0,
-							appointment.schedule.availableSlots - 1,
-						),
-					},
-				});
+			const reservedSlot = await tx.schedule.updateMany({
+				where: {
+					id: appointment.schedule.id,
+					availableSlots: { gt: 0 },
+				},
+				data: { availableSlots: { decrement: 1 } },
+			});
 
-				await tx.payment.update({
-					where: {
-						appointmentId: appointment.id,
-						bkashPaymentId: paymentId,
-					},
-					data: {
-						status: PaymentStatus.PAID,
-						bkashTrxId: executedPaymentResult.trxID,
-						paidAt: executedPaymentResult.paymentExecuteTime
-							? new Date(executedPaymentResult.paymentExecuteTime)
-							: new Date(),
-						gatewayResponse: executedPaymentResult,
-					},
-				});
+			if (reservedSlot.count !== 1) {
+				throw new AppError(
+					httpStatus.CONFLICT,
+					"No appointment slots are available",
+				);
+			}
 
-				return { appointment, serialNumber, joiningTime };
-			},
-			{
-				maxWait: 10000,
-				timeout: 20000,
-			},
-		);
+			const updatedSchedule = await tx.schedule.findUniqueOrThrow({
+				where: { id: appointment.schedule.id },
+			});
+			const serialNumber =
+				updatedSchedule.totalSlots - updatedSchedule.availableSlots;
+			const joiningTime = addMinutes(
+				updatedSchedule.startDateTime,
+				(serialNumber - 1) * 20,
+			);
 
-		// Generate PDF invoice & send email outside DB transaction
+			const updatedAppointment = await tx.appointment.update({
+				where: { id: appointment.id },
+				data: {
+					status: AppointmentStatus.CONFIRMED,
+					joiningTime,
+					serialNumber,
+				},
+				include: {
+					schedule: true,
+					patient: true,
+					doctor: true,
+				},
+			});
+
+			return {
+				appointment: updatedAppointment,
+				serialNumber,
+				joiningTime,
+				shouldSendInvoice: true,
+			};
+		},
+		{
+			maxWait: 10000,
+			timeout: 20000,
+		},
+	);
+
+	if (confirmedData.shouldSendInvoice) {
 		try {
 			const { appointment, serialNumber, joiningTime } = confirmedData;
 			const pdfDocument = new PDFDocument({ margin: 50 });
@@ -516,13 +614,13 @@ const bookAppointmentCallback = async (query: Record<string, any>) => {
 
 			pdfDocument
 				.fontSize(12)
-				.text(`Patient Name: ${appointment.patient?.name}`);
-			pdfDocument.text(`Patient Email: ${appointment.patient?.email}`);
+				.text(`Patient Name: ${appointment.patient.name}`);
+			pdfDocument.text(`Patient Email: ${appointment.patient.email}`);
 			pdfDocument.moveDown();
 
-			pdfDocument.text(`Doctor Name: ${appointment.doctor?.name}`);
+			pdfDocument.text(`Doctor Name: ${appointment.doctor.name}`);
 			pdfDocument.text(
-				`Specialization: ${appointment.doctor?.specialization}`,
+				`Specialization: ${appointment.doctor.specialization}`,
 			);
 			pdfDocument.moveDown();
 
@@ -534,13 +632,10 @@ const bookAppointmentCallback = async (query: Record<string, any>) => {
 			pdfDocument.text(`Meeting Link: ${appointment.schedule.meetingLink}`);
 			pdfDocument.moveDown();
 
-			pdfDocument.text(`Amount Paid: ${executedPaymentResult.amount} BDT`);
-			pdfDocument.text(`Payment Method: bKash`);
-			pdfDocument.text(`Transaction Id: ${executedPaymentResult.trxID}`);
-			pdfDocument.text(
-				`Paid At: ${executedPaymentResult.paymentExecuteTime}`,
-			);
-
+			pdfDocument.text(`Amount Paid: ${validatedAmount.toFixed(2)} BDT`);
+			pdfDocument.text("Payment Method: SSLCOMMERZ");
+			pdfDocument.text(`Transaction Id: ${bankTransactionId}`);
+			pdfDocument.text(`Paid At: ${new Date().toISOString()}`);
 			pdfDocument.end();
 
 			const pdfBuffer = await pdfReadyPromise;
@@ -560,42 +655,20 @@ const bookAppointmentCallback = async (query: Record<string, any>) => {
 		} catch (emailError) {
 			console.error("Failed to send appointment invoice email:", emailError);
 		}
-
-		return {
-			redirectUrl: `${cleanFrontendUrl}/dashboard/my-appointments?status=success`,
-		};
 	}
 
-	if (callbackStatus === "cancel") {
-		await prisma.payment
-			.update({
-				where: { bkashPaymentId: paymentId },
-				data: {
-					status: PaymentStatus.CANCELLED,
-					gatewayResponse: executedPaymentResult,
-				},
-			})
-			.catch(() => {});
+	return "success" as const;
+};
 
-		return {
-			executedPaymentResult,
-			redirectUrl: `${cleanFrontendUrl}/dashboard/my-appointments?status=cancel`,
-		};
-	}
-
-	await prisma.payment
-		.update({
-			where: { bkashPaymentId: paymentId },
-			data: {
-				status: PaymentStatus.FAILED,
-				gatewayResponse: executedPaymentResult,
-			},
-		})
-		.catch(() => {});
+const bookAppointmentCallback = async (notification: unknown) => {
+	const callbackStatus = await processSslcommerzNotification(notification);
+	const cleanFrontendUrl = (config.frontend_url || "http://localhost:3000")
+		.trim()
+		.replace(/[\r\n]/g, "")
+		.replace(/\/+$/, "");
 
 	return {
-		executedPaymentResult,
-		redirectUrl: `${cleanFrontendUrl}/dashboard/my-appointments?status=failure`,
+		redirectUrl: `${cleanFrontendUrl}/dashboard/my-appointments?status=${callbackStatus}`,
 	};
 };
 
@@ -643,44 +716,45 @@ const cancelAppointment = async (
 
 	const isEligibleForRefund =
 		existingAppointment.payment?.status === PaymentStatus.PAID &&
-		Boolean(existingAppointment.payment?.bkashPaymentId) &&
-		Boolean(existingAppointment.payment?.bkashTrxId) &&
+		Boolean(existingAppointment.payment?.gatewayTransactionId) &&
 		isBefore(now, refundCutOffTime);
 
-	// Execute bKash refund outside DB transaction if eligible
-	let bkashRefundPaymentResult: Record<string, any> | null = null;
+	let sslcommerzRefundResult: Record<string, unknown> | null = null;
 
 	if (isEligibleForRefund) {
-		const bkashIdToken = await getBkashIdToken();
-
-		if (!bkashIdToken) {
+		const bankTransactionId =
+			existingAppointment.payment?.gatewayTransactionId;
+		if (!bankTransactionId || !existingAppointment.payment) {
 			throw new AppError(
 				httpStatus.BAD_GATEWAY,
-				"No Bkash Access Token Found!",
+				"SSLCOMMERZ transaction details are missing for the refund",
 			);
 		}
 
-		const bkashRefundPaymentResponse = await fetch(
-			`${config.bkash_base_url}/tokenized/checkout/payment/refund`,
-			{
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Accept: "application/json",
-					Authorization: bkashIdToken,
-					"X-App-Key": config.bkash_app_key,
-				},
-				body: JSON.stringify({
-					paymentID: existingAppointment.payment?.bkashPaymentId,
-					trxID: existingAppointment.payment?.bkashTrxId,
-					amount: existingAppointment.payment?.amount.toString(),
-					sku: "Appointment Cancellation",
-					reason: "Patient Cancelled The Appointment",
-				}),
-			},
+		const refundTransactionId = `RF${existingAppointment.id
+			.replace(/-/g, "")
+			.slice(0, 28)}`;
+		sslcommerzRefundResult = await requestSslcommerzRefund(
+			bankTransactionId,
+			refundTransactionId,
+			existingAppointment.payment.amount.toString(),
+			"Patient cancelled the appointment",
 		);
 
-		bkashRefundPaymentResult = await bkashRefundPaymentResponse.json();
+		const refundStatus =
+			typeof sslcommerzRefundResult.status === "string"
+				? sslcommerzRefundResult.status.toLowerCase()
+				: "";
+		if (!["success", "processing"].includes(refundStatus)) {
+			console.error("SSLCOMMERZ refund request was rejected", {
+				status: refundStatus,
+				errorReason: sslcommerzRefundResult.errorReason,
+			});
+			throw new AppError(
+				httpStatus.BAD_GATEWAY,
+				"SSLCOMMERZ could not initiate the refund",
+			);
+		}
 	}
 
 	return prisma.$transaction(async (tx) => {
@@ -700,20 +774,22 @@ const cancelAppointment = async (
 			});
 		}
 
-		if (isEligibleForRefund && bkashRefundPaymentResult) {
+		if (isEligibleForRefund && sslcommerzRefundResult) {
+			const refundReferenceId =
+				typeof sslcommerzRefundResult.refund_ref_id === "string"
+					? sslcommerzRefundResult.refund_ref_id
+					: null;
 			await tx.payment.update({
 				where: {
 					appointmentId: existingAppointment.id,
 				},
 				data: {
-					refundTrxId: bkashRefundPaymentResult.refundTrxID,
-					refundedAt: bkashRefundPaymentResult.completedTime
-						? new Date(bkashRefundPaymentResult.completedTime)
-						: new Date(),
-					refundAmount: bkashRefundPaymentResult.amount,
+					gatewayRefundId: refundReferenceId,
+					refundedAt: null,
+					refundAmount: existingAppointment.payment?.amount,
 					refundReason: "Patient Cancelled The Appointment",
-					status: PaymentStatus.REFUNDED,
-					gatewayResponse: bkashRefundPaymentResult,
+					status: PaymentStatus.REFUND_PENDING,
+					gatewayResponse: sslcommerzRefundResult as Prisma.InputJsonValue,
 				},
 			});
 		}
@@ -1039,6 +1115,7 @@ export const AppointmentServices = {
 	bookAppointment,
 	payAppointment,
 	bookAppointmentCallback,
+	processSslcommerzNotification,
 	cancelAppointment,
 	updateAppointmentStatus,
 	getMyAppointments,
