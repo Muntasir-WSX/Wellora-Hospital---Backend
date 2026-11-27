@@ -668,7 +668,7 @@ const bookAppointmentCallback = async (notification: unknown) => {
 		.replace(/\/+$/, "");
 
 	return {
-		redirectUrl: `${cleanFrontendUrl}/dashboard/my-appointments?status=${callbackStatus}`,
+		redirectUrl: `${cleanFrontendUrl}/patient/appointments?status=${callbackStatus}`,
 	};
 };
 
